@@ -25,7 +25,7 @@ void Mixer::mixer(mixer_input* inputs, size_t n,
 
 	// Inicjalizacja struktury:
 	for (int i = 0; i< n; ++i)
-		if (inputs[i].len > 0)
+		if (inputs[i].len > 1)
 			data[i] = static_cast<std::vector<int16_t>*>(inputs[i].data);
 
 	// Bufor liczb 16-bitowych ze znakiem:
@@ -56,6 +56,8 @@ void Mixer::mixer(mixer_input* inputs, size_t n,
 
 			// Zaktualizuj liczbę pobranych bajtów w strukturze mixer_input:
 			inputs[idx].consumed += 2;
+			// oraz w written_shorts:
+			written_shorts += 2;
 		}
 
 		const int16_t short_min = static_cast<int16_t>(std::max(SHRT_MIN, static_cast<int>(shorts_sum)));
@@ -71,6 +73,9 @@ void Mixer::mixer(mixer_input* inputs, size_t n,
 	// które nie mogły być przejrzane do końca 
 	// ze względu na ograniczenie requested_length.
 	set.clear();
+
+	// Zaktualizuj rozmiar przesłanych danych (w bajtach)
+	*output_size = out_size;
 }
 
 void Mixer::init_consumed_bytes(mixer_input* inputs, const int size) const
@@ -86,7 +91,7 @@ unsigned long Mixer::get_total_bytes(const mixer_input* inputs, const int size) 
 	unsigned long total_bytes = 0;
 	// Wyznacz sumaryczną liczbę bajtów możliwą do skonsumowania
 	for (int i = 0; i< size; ++i)
-		total_bytes += inputs[i].len;
+		total_bytes += (inputs[i].len / 2) * 2;
 
 	return total_bytes;
 }
