@@ -89,12 +89,12 @@ void Mixer::init_consumed_bytes(mixer_input* inputs, const int size) const
 	}
 }
 
-unsigned long Mixer::get_total_bytes(const mixer_input* inputs, const int size) const
+size_t Mixer::get_total_bytes(const mixer_input* inputs, const int size) const
 {
-	unsigned long total_bytes = 0;
+	size_t total_bytes = 0;
 	// Wyznacz sumaryczną liczbę bajtów możliwą do skonsumowania
 	for (int i = 0; i< size; ++i)
-		total_bytes += (inputs[i].len / 2) * 2;
+		total_bytes = std::max((inputs[i].len / 2) * 2, total_bytes);
 
 	return total_bytes;
 }
