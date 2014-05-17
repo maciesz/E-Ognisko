@@ -37,9 +37,11 @@ void Mixer::mixer(mixer_input* inputs, size_t n,
 	// Castowanie bufora danych wyjściowych na typ domyślnie przyjęty w serwerze
 	std::vector<int16_t>* output_data_buf = static_cast<std::vector<int16_t>*>(output_buf);
 
+
 	// Uzupełnianie bufora wynikowego:
 	while (2 * iteration < out_size) {
 		shorts_sum = 0;
+
 		// Przejdź po wszystkich niepustych kolejkach:
 		for (auto it = set.begin(); it != set.end();) {
 			
@@ -85,12 +87,12 @@ void Mixer::init_consumed_bytes(mixer_input* inputs, const int size) const
 	}
 }
 
-unsigned long Mixer::get_total_bytes(const mixer_input* inputs, const int size) const
+size_t Mixer::get_total_bytes(const mixer_input* inputs, const int size) const
 {
-	unsigned long total_bytes = 0;
+	size_t total_bytes = 0;
 	// Wyznacz sumaryczną liczbę bajtów możliwą do skonsumowania
 	for (int i = 0; i< size; ++i)
-		total_bytes += (inputs[i].len / 2) * 2;
+		total_bytes = std::max((inputs[i].len / 2) * 2, total_bytes);
 
 	return total_bytes;
 }
