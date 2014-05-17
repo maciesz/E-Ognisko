@@ -10,7 +10,7 @@ void Mixer::mixer(mixer_input* inputs, size_t n,
 	// Wyznacz rozmiar danych, który zostanie zapisany do bufora(w bajtach)
 	const size_t requested_length = MULTIPLIER * tx_interval_ms;
 	const size_t total_bytes = get_total_bytes(inputs, n);
-	const size_t out_size = std::min(requested_length, total_bytes);
+	const size_t out_size = std::min(*output_size, std::min(requested_length, total_bytes));
 
 	// Struktura przechowująca numery kolejek, 
 	// w których w poszczególnych iteracjach są jeszcze bajty danych
@@ -25,48 +25,51 @@ void Mixer::mixer(mixer_input* inputs, size_t n,
 
 	// Inicjalizacja struktury:
 	for (int i = 0; i< n; ++i)
-		if (inputs[i].len > 1)
+		if (inputs[i].len > 1) {
+
 			data[i] = static_cast<std::vector<int16_t>*>(inputs[i].data);
 
-	// Bufor liczb 16-bitowych ze znakiem:
-	int16_t* buffer = new int16_t[n];
+		}
 
 	// Zmienne pomocnicze:
-	size_t written_shorts = 0;
 	size_t iteration = 0;
-	size_t shorts_sum;
+	int shorts_sum;
 	size_t idx;
 
+	// Castowanie bufora danych wyjściowych na typ domyślnie przyjęty w serwerze
+	std::vector<int16_t>* output_data_buf = static_cast<std::vector<int16_t>*>(output_buf);
+
+
 	// Uzupełnianie bufora wynikowego:
-	while (written_shorts < out_size) {
+	while (2 * iteration < out_size) {
 		shorts_sum = 0;
+
 		// Przejdź po wszystkich niepustych kolejkach:
 		for (auto it = set.begin(); it != set.end();) {
 			
 			// Wyznacz indeks i dodaj shorta do sumy:
 			idx = *it;
-			shorts_sum += (*data)[idx][iteration];
 
-			// Jeżeli był to ostatni element w kolejce, 
-			// to wyrzuć id_kolejki ze struktury:
-			if (iteration == inputs[idx].len - 2)
+			shorts_sum += data[idx]->at(iteration);
+
+			// Jeżeli był to ostatni element w kolejce
+			// lub po tym elemencie został jeden bajt, 
+			// to wyrzuć id_kolejki ze struktury tymczasowej:
+			if (2 * iteration >= inputs[idx].len - 2)
 				set.erase(it++);
 			else
 				++it;
 
 			// Zaktualizuj liczbę pobranych bajtów w strukturze mixer_input:
 			inputs[idx].consumed += 2;
-			// oraz w written_shorts:
-			written_shorts += 2;
 		}
 
 		const int16_t short_min = static_cast<int16_t>(std::max(SHRT_MIN, static_cast<int>(shorts_sum)));
-		const int16_t short_max = static_cast<int16_t>(std::min(SHRT_MIN, static_cast<int>(shorts_sum)));
+		const int16_t short_max = static_cast<int16_t>(std::min(SHRT_MAX, static_cast<int>(shorts_sum)));
 		const int16_t final_short = (shorts_sum < 0) ? short_min : short_max;
 
 		// Wpisz kolejną liczbę 16-bitową na kolejną pozycję
-		// TODO:
-		//*(static_cast<int16_t*>(&output_buf)) = final_short;
+		(*output_data_buf)[iteration++] = final_short;
 	}
 
 	// Usuń ze strukruty numery tych kolejek, 

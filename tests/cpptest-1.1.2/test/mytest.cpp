@@ -5,7 +5,7 @@
 #include <climits>
 
 #include "../../../main/mixer/mixer.h"
-#include "../../../main/structures.h"
+#include "../../../main/headers/structures.h"
 #include "../src/cpptest.h"
 
 enum OutputType
@@ -84,6 +84,7 @@ private:
 	mixer_input* inputs;
 	std::vector<int16_t> buffer;
 	size_t* buffer_size;
+	size_t bytes;
 	// mixer:
 	Mixer mixer;
 	// metody:
@@ -111,14 +112,16 @@ void MixerTestSuite::tear_down()
 	delete[] inputs;
 
 	// Zwolnij pamięć zajmowaną przez wskaźnik na domyślny rozmiar bufora
-	delete buffer_size;
+	//delete buffer_size;
 }
 
 // Testy
 void MixerTestSuite::regularly_distributed_single_mixer_call_test()
 {
-	/*const int size_of_buffer = 2;
+	size_t size_of_buffer = 2 * 2;
 	const int inputs_size = 4;
+
+	buffer_size = &size_of_buffer;
 	// Równomierna inicjalizacja niektórych kolejek w tablicy:
 	queues[0].push_back(1);
 	queues[0].push_back(10);
@@ -139,13 +142,15 @@ void MixerTestSuite::regularly_distributed_single_mixer_call_test()
 	mixer.mixer(&inputs[0], inputs_size , static_cast<void*>(&buffer), buffer_size, TX_INTERVAL_MS);
 
 	TEST_ASSERT(buffer[0] == 1 + 5 + 2001 + 28);
-	TEST_ASSERT(buffer[1] == 10 + 19 + 789 + 45);*/
+	TEST_ASSERT(buffer[1] == 10 + 19 + 789 + 45);
 }
 
 void MixerTestSuite::regularly_distributed_extreme_short_values_test()
 {
-	/*const int size_of_buffer = 2;
+	size_t size_of_buffer = 2 * 2;
 	const int inputs_size = 3;
+
+	buffer_size = &size_of_buffer;
 	// Równomierna inicjalizacja niektórych kolejek w tablicy
 	queues[0].push_back(15000);
 	queues[0].push_back(-13000);
@@ -160,18 +165,21 @@ void MixerTestSuite::regularly_distributed_extreme_short_values_test()
 	init_data(size_of_buffer, inputs_size);
 
 	// Wywołanie metody mixer na.mixerze:
-	mixer.mixer(&inputs[0], size_of_buffer, static_cast<void*>(&buffer), buffer_size, TX_INTERVAL_MS);
+	mixer.mixer(&inputs[0], inputs_size, static_cast<void*>(&buffer), buffer_size, TX_INTERVAL_MS);
 
-	TEST_ASSERT(buffer[0] == SHRT_MIN);
-	TEST_ASSERT(buffer[1] == SHRT_MAX); */
+	TEST_ASSERT(buffer[0] == SHRT_MAX);
+	TEST_ASSERT(buffer[1] == SHRT_MIN);
 }
 
 void MixerTestSuite::irregularly_distributed_single_mixer_call_test()
 {
-	/*const int size_of_buffer = 4;
+
+	size_t size_of_buffer = 4 * 2;
 	const int inputs_size = 3;
 
+	buffer_size = &size_of_buffer;
 	// Nierównomierna inicjalizacja pewnych kolejek
+
 	queues[3].push_back(1029);
 	queues[3].push_back(-8129);
 	queues[3].push_back(1253);
@@ -191,14 +199,13 @@ void MixerTestSuite::irregularly_distributed_single_mixer_call_test()
 	TEST_ASSERT(buffer[0] == 1029 + 9 + 13);
 	TEST_ASSERT(buffer[1] == -8129 + 9);
 	TEST_ASSERT(buffer[2] == 1253);
-	TEST_ASSERT(buffer[3] == 123); */
+	TEST_ASSERT(buffer[3] == 123);
 }
 
 void MixerTestSuite::init_data(const int size_of_buffer, const int inputs_size)
 {
-	/*// Zarezerwuj wymaganą pamięć
+	// Zarezerwuj wymaganą pamięć
 	buffer.reserve(size_of_buffer);
-	*buffer_size = 2 * size_of_buffer;
 
 	// Deklaracja struktury:
 	inputs = new mixer_input[inputs_size];
@@ -207,11 +214,11 @@ void MixerTestSuite::init_data(const int size_of_buffer, const int inputs_size)
 	int next = 0;
 	for (int i = 0; i< QUEUES; ++i) {
 		if (queues[i].size() > 0) {
-			inputs[next++].len = 2 * queues[i].size();
-			inputs[next++].data = static_cast<void*>(&queues[i]);
+			inputs[next].len = 2 * queues[i].size();
+			inputs[next].data = static_cast<void*>(&queues[i]);
+			next++;
 		}
-	}*/
-
+	}
 }
 
 const int MixerTestSuite::QUEUES = 13;

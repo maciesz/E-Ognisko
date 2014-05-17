@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include "../structures.h"
+#include "../../../main/headers/structures.h"
 
 class Mixer
 {

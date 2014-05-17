@@ -11,7 +11,7 @@ void Mixer::mixer(mixer_input* inputs, size_t n,
 	const size_t requested_length = MULTIPLIER * tx_interval_ms;
 	const size_t total_bytes = get_total_bytes(inputs, n);
 	const size_t out_size = std::min(*output_size, std::min(requested_length, total_bytes));
-	printf("Out_size: %d\n", out_size);
+
 	// Struktura przechowująca numery kolejek, 
 	// w których w poszczególnych iteracjach są jeszcze bajty danych
 	std::set<size_t> set;
@@ -25,38 +25,33 @@ void Mixer::mixer(mixer_input* inputs, size_t n,
 
 	// Inicjalizacja struktury:
 	for (int i = 0; i< n; ++i)
-		if (inputs[i].len > 1)
+		if (inputs[i].len > 1) {
 			data[i] = static_cast<std::vector<int16_t>*>(inputs[i].data);
-
-	// Bufor liczb 16-bitowych ze znakiem:
-	int16_t* buffer = new int16_t[n];
+		}
 
 	// Zmienne pomocnicze:
 	size_t iteration = 0;
-	size_t shorts_sum;
+	int shorts_sum;
 	size_t idx;
 
 	// Castowanie bufora danych wyjściowych na typ domyślnie przyjęty w serwerze
 	std::vector<int16_t>* output_data_buf = static_cast<std::vector<int16_t>*>(output_buf);
 
-	printf("----------------------------------------------\n");
 	// Uzupełnianie bufora wynikowego:
 	while (2 * iteration < out_size) {
 		shorts_sum = 0;
-		printf("Iteration: %d\n", iteration);
 		// Przejdź po wszystkich niepustych kolejkach:
 		for (auto it = set.begin(); it != set.end();) {
 			
 			// Wyznacz indeks i dodaj shorta do sumy:
 			idx = *it;
 
-			shorts_sum += (*data)[idx][iteration];
-			printf("%hd, ", (*data)[idx][iteration]);
+			shorts_sum += data[idx]->at(iteration);
 
 			// Jeżeli był to ostatni element w kolejce
 			// lub po tym elemencie został jeden bajt, 
 			// to wyrzuć id_kolejki ze struktury tymczasowej:
-			if (iteration >= inputs[idx].len - 2)
+			if (2 * iteration >= inputs[idx].len - 2)
 				set.erase(it++);
 			else
 				++it;
@@ -70,10 +65,7 @@ void Mixer::mixer(mixer_input* inputs, size_t n,
 		const int16_t final_short = (shorts_sum < 0) ? short_min : short_max;
 
 		// Wpisz kolejną liczbę 16-bitową na kolejną pozycję
-		// TODO:
 		(*output_data_buf)[iteration++] = final_short;
-		printf("\nFinal_short: %hd\n", final_short);
-		printf("------------------------------------------------\n");
 	}
 
 	// Usuń ze strukruty numery tych kolejek, 

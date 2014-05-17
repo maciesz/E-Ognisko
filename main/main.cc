@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "mixer.h"
-#include "structures.h"
+#include "mixer/mixer.h"
+#include "headers/structures.h"
 
 void function(void* data)
 {
@@ -37,9 +37,10 @@ int main()
 	output_buffer.push_back(1);
 	output_buffer.push_back(3);
 
+
 		//printf("%hd\n", output_buffer.size());
 		//output_buffer.push_back((int16_t)0);
-
+	
 	size_t size_another = 4;
 	std::vector<int16_t> packages[size_another];
 
@@ -53,23 +54,20 @@ int main()
 	packages[3].push_back(20);
 
 	mixer_input inputs[size_another];
-	size_t* buffer_size;
-	*buffer_size = 4;
+	size_t bytes = 4;
+	size_t* buffer_size = &bytes;
+	
 	for (int i = 0; i< size_another; ++i) {
 		inputs[i].len = 4;
 		inputs[i].data = static_cast<void*>(&packages[i]);
 	}
 
 	mixer.mixer(&inputs[0], size_another, static_cast<void*>(&output_buffer), buffer_size, 5);
-	
 	//printf("%d\n", output_buffer.size());
 	for (int i = 0; i< output_buffer.size(); ++i)
 		printf("%hd ", output_buffer[i]);
+	
+	std::vector<int16_t> wektor;
 
-	std::vector<int> wektor;
-
-	for (int i = 0; i< output_buffer.size(); ++i) {
-		printf("%d\n", output_buffer.size());
-	}
 	return 0;
 }

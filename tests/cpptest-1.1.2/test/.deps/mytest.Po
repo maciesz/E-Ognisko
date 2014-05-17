@@ -95,8 +95,9 @@ mytest.o: mytest.cpp /usr/include/c++/4.7/iostream \
  /usr/include/i386-linux-gnu/bits/sys_errlist.h \
  /usr/include/i386-linux-gnu/bits/stdio.h \
  /usr/lib/gcc/i486-linux-gnu/4.7/include/stdint.h /usr/include/stdint.h \
- ../../../main/mixer/../structures.h ../../../main/structures.h \
- ../src/cpptest.h ../src/cpptest-assert.h /usr/include/c++/4.7/sstream \
+ ../../../main/mixer/../headers/structures.h \
+ ../../../main/headers/structures.h ../src/cpptest.h \
+ ../src/cpptest-assert.h /usr/include/c++/4.7/sstream \
  /usr/include/c++/4.7/bits/sstream.tcc ../src/cpptest-source.h \
  ../src/cpptest-suite.h /usr/include/c++/4.7/list \
  /usr/include/c++/4.7/bits/stl_list.h /usr/include/c++/4.7/bits/list.tcc \
@@ -359,9 +360,9 @@ mytest.o: mytest.cpp /usr/include/c++/4.7/iostream \
 
 /usr/include/stdint.h:
 
-../../../main/mixer/../structures.h:
+../../../main/mixer/../headers/structures.h:
 
-../../../main/structures.h:
+../../../main/headers/structures.h:
 
 ../src/cpptest.h:
 
