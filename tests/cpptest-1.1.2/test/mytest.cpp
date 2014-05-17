@@ -141,8 +141,14 @@ void MixerTestSuite::regularly_distributed_single_mixer_call_test()
 	// Wywołanie metody mixer na.mixerze:
 	mixer.mixer(&inputs[0], inputs_size , static_cast<void*>(&buffer), buffer_size, TX_INTERVAL_MS);
 
+	// Sprawdź zawartość bufora
 	TEST_ASSERT(buffer[0] == 1 + 5 + 2001 + 28);
 	TEST_ASSERT(buffer[1] == 10 + 19 + 789 + 45);
+
+	// Sprawdź, czy 'consumed' są poprawnie wyznaczone
+	for (int i = 0; i< inputs_size; ++i) {
+		TEST_ASSERT(inputs[i].consumed == 4);
+	}
 }
 
 void MixerTestSuite::regularly_distributed_extreme_short_values_test()
@@ -167,8 +173,14 @@ void MixerTestSuite::regularly_distributed_extreme_short_values_test()
 	// Wywołanie metody mixer na.mixerze:
 	mixer.mixer(&inputs[0], inputs_size, static_cast<void*>(&buffer), buffer_size, TX_INTERVAL_MS);
 
+	// Sprawdź zawartość bufora 
 	TEST_ASSERT(buffer[0] == SHRT_MAX);
 	TEST_ASSERT(buffer[1] == SHRT_MIN);
+
+	// Sprawdź, czy 'consumed' są poprawnie wyznaczone
+	for (int i = 0; i< inputs_size; ++i) {
+		TEST_ASSERT(inputs[i].consumed == 4);
+	}
 }
 
 void MixerTestSuite::irregularly_distributed_single_mixer_call_test()
@@ -196,10 +208,16 @@ void MixerTestSuite::irregularly_distributed_single_mixer_call_test()
 	// Wywołanie metody mixer na.mixerze:
 	mixer.mixer(&inputs[0], inputs_size, static_cast<void*>(&buffer), buffer_size, TX_INTERVAL_MS);
 
+	// Sprawdź zawartość bufora
 	TEST_ASSERT(buffer[0] == 1029 + 9 + 13);
 	TEST_ASSERT(buffer[1] == -8129 + 9);
 	TEST_ASSERT(buffer[2] == 1253);
 	TEST_ASSERT(buffer[3] == 123);
+
+	// Sprawdź, czy 'consumed' są poprawnie wyznaczone
+	TEST_ASSERT(inputs[0].consumed == 8);
+	TEST_ASSERT(inputs[1].consumed == 2);
+	TEST_ASSERT(inputs[2].consumed == 4);
 }
 
 void MixerTestSuite::init_data(const int size_of_buffer, const int inputs_size)
@@ -215,6 +233,7 @@ void MixerTestSuite::init_data(const int size_of_buffer, const int inputs_size)
 	for (int i = 0; i< QUEUES; ++i) {
 		if (queues[i].size() > 0) {
 			inputs[next].len = 2 * queues[i].size();
+			inputs[next].consumed = 0;
 			inputs[next].data = static_cast<void*>(&queues[i]);
 			next++;
 		}
