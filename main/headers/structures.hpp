@@ -12,4 +12,17 @@ struct mixer_input {
 	// wskazująca ile bajtów należy usunąć z FIFO
 	size_t consumed;
 };
+
+
+struct program_parametres {
+
+	program_parametres(int argc, char** argv) 
+		: _argc(argc), _argv(argv)
+	{
+	}
+
+	int _argc;
+	char** _argv;
+};
+
 #endif

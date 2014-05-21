@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <set>
 
-#include "mixer.h"
+#include "mixer.hpp"
 
 void Mixer::mixer(mixer_input* inputs, size_t n, 
 		void* output_buf, size_t* output_size, unsigned long tx_interval_ms) const
@@ -26,7 +26,9 @@ void Mixer::mixer(mixer_input* inputs, size_t n,
 	// Inicjalizacja struktury:
 	for (int i = 0; i< n; ++i)
 		if (inputs[i].len > 1) {
+
 			data[i] = static_cast<std::vector<int16_t>*>(inputs[i].data);
+
 		}
 
 	// Zmienne pomocnicze:
