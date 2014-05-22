@@ -1,9 +1,9 @@
 #include "headerline_parser.hpp"
 
-header_data headerline_parser::get_data(const char* headerline)
+header_data headerline_parser::get_data(const std::string& headerline_s)
 {
 	// Skonwertuj na stringa
-	std::string headerline_s(headerline);
+	//std::string headerline_s(headerline);
 	// Deklaracja wektora tymczasowo przechowującego dane
 	std::vector<std::string> args;
 	// Wypełnienie wektora poszczególnymi komponentami z nagłówka

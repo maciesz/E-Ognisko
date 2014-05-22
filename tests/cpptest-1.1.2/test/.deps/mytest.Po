@@ -91,12 +91,26 @@ mytest.o: mytest.cpp /usr/include/c++/4.7/iostream \
  /usr/include/i386-linux-gnu/bits/posix2_lim.h \
  /usr/include/i386-linux-gnu/bits/xopen_lim.h \
  /usr/include/i386-linux-gnu/bits/stdio_lim.h \
- ../../../main/mixer/mixer.hpp /usr/include/libio.h \
- /usr/include/_G_config.h /usr/include/i386-linux-gnu/bits/sys_errlist.h \
- /usr/include/i386-linux-gnu/bits/stdio.h \
+ ../../../main/mixer/mixer.hpp /usr/include/boost/cstdint.hpp \
+ /usr/include/boost/config.hpp /usr/include/boost/config/user.hpp \
+ /usr/include/boost/config/select_compiler_config.hpp \
+ /usr/include/boost/config/compiler/gcc.hpp \
+ /usr/include/boost/config/select_stdlib_config.hpp \
+ /usr/include/c++/4.7/cstddef \
+ /usr/include/boost/config/no_tr1/utility.hpp \
+ /usr/include/c++/4.7/utility /usr/include/c++/4.7/bits/stl_relops.h \
+ /usr/include/boost/config/stdlib/libstdcpp3.hpp /usr/include/unistd.h \
+ /usr/include/i386-linux-gnu/bits/posix_opt.h \
+ /usr/include/i386-linux-gnu/bits/environments.h \
+ /usr/include/i386-linux-gnu/bits/confname.h /usr/include/getopt.h \
+ /usr/include/boost/config/select_platform_config.hpp \
+ /usr/include/boost/config/platform/linux.hpp \
+ /usr/include/boost/config/posix_features.hpp \
+ /usr/include/boost/config/suffix.hpp \
  /usr/lib/gcc/i486-linux-gnu/4.7/include/stdint.h /usr/include/stdint.h \
- ../../../main/headers/structures.hpp \
- ../../../main/headers/structures.hpp ../src/cpptest.h \
+ ../../../main/mixer/../common/structures.hpp \
+ ../../../main/mixer/../common/../exceptions/invalid_header_exception.hpp \
+ ../../../main/common/structures.hpp ../src/cpptest.h \
  ../src/cpptest-assert.h /usr/include/c++/4.7/sstream \
  /usr/include/c++/4.7/bits/sstream.tcc ../src/cpptest-source.h \
  ../src/cpptest-suite.h /usr/include/c++/4.7/list \
@@ -348,21 +362,55 @@ mytest.o: mytest.cpp /usr/include/c++/4.7/iostream \
 
 ../../../main/mixer/mixer.hpp:
 
-/usr/include/libio.h:
+/usr/include/boost/cstdint.hpp:
 
-/usr/include/_G_config.h:
+/usr/include/boost/config.hpp:
 
-/usr/include/i386-linux-gnu/bits/sys_errlist.h:
+/usr/include/boost/config/user.hpp:
 
-/usr/include/i386-linux-gnu/bits/stdio.h:
+/usr/include/boost/config/select_compiler_config.hpp:
+
+/usr/include/boost/config/compiler/gcc.hpp:
+
+/usr/include/boost/config/select_stdlib_config.hpp:
+
+/usr/include/c++/4.7/cstddef:
+
+/usr/include/boost/config/no_tr1/utility.hpp:
+
+/usr/include/c++/4.7/utility:
+
+/usr/include/c++/4.7/bits/stl_relops.h:
+
+/usr/include/boost/config/stdlib/libstdcpp3.hpp:
+
+/usr/include/unistd.h:
+
+/usr/include/i386-linux-gnu/bits/posix_opt.h:
+
+/usr/include/i386-linux-gnu/bits/environments.h:
+
+/usr/include/i386-linux-gnu/bits/confname.h:
+
+/usr/include/getopt.h:
+
+/usr/include/boost/config/select_platform_config.hpp:
+
+/usr/include/boost/config/platform/linux.hpp:
+
+/usr/include/boost/config/posix_features.hpp:
+
+/usr/include/boost/config/suffix.hpp:
 
 /usr/lib/gcc/i486-linux-gnu/4.7/include/stdint.h:
 
 /usr/include/stdint.h:
 
-../../../main/headers/structures.hpp:
+../../../main/mixer/../common/structures.hpp:
 
-../../../main/headers/structures.hpp:
+../../../main/mixer/../common/../exceptions/invalid_header_exception.hpp:
+
+../../../main/common/structures.hpp:
 
 ../src/cpptest.h:
 

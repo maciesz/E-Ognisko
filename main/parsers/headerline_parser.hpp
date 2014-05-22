@@ -16,7 +16,7 @@
 class headerline_parser
 {
 public:
-	static header_data get_data(const char* headerline);
+	static header_data get_data(const std::string& headerline);
 };
 
 #endif

@@ -83,6 +83,12 @@ int main()
 	build_incorrect(incorrect_communicates);
 	build_incorrect_with_letters(incorrect_with_letters);
 
+	preprocess(correct_communicates);
+	std::cout << "---------------------------------------------------------\n";
+	preprocess(incorrect_communicates);
+	std::cout << "---------------------------------------------------------\n";
 	preprocess(incorrect_with_letters);
+	std::cout << "---------------------------------------------------------\n";
+
 	return 0;
 }

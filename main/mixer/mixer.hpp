@@ -2,9 +2,6 @@
 #define MIXER_H
 
 #include <boost/cstdint.hpp>
-/*#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>*/
 
 #include "../common/structures.hpp"
 

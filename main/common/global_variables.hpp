@@ -22,6 +22,9 @@ const boost::uint16_t FIFO_HIGH_WATERMARK = 10560;
 // Rozmiar bufora pakietów wychodzących(w datagramach)
 const boost::uint16_t BUF_LEN = 10;
 
+// Rozmiar bufora danych z wejścia u klienta(w bajtach)
+const boost::uint16_t CLIENT_BUFFER_LEN = 9096;
+
 // Ograniczenie na limit retransmisji
 const boost::uint16_t RETRANSMIT_LIMIT = 10;
 
