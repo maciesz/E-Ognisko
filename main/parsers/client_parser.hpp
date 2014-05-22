@@ -7,9 +7,9 @@
 // Biblioteki standardowe
 #include <string>
 // Własne biblioteki/struktury
-#include "../headers/structures.hpp"
-#include "../headers/global_variables.hpp"
-#include "../headers/response.hpp"
+#include "../common/structures.hpp"
+#include "../common/global_variables.hpp"
+#include "../common/response.hpp"
 
 class client_parser
 {

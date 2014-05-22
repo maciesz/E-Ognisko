@@ -5,7 +5,7 @@
 #include <climits>
 
 #include "../../../main/mixer/mixer.hpp"
-#include "../../../main/headers/structures.hpp"
+#include "../../../main/common/structures.hpp"
 #include "../src/cpptest.h"
 
 enum OutputType

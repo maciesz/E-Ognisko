@@ -20,7 +20,6 @@ response server_parser::parse(boost::uint16_t& port, boost::uint16_t& fifo_size,
 
 		try {
 			po::store(po::parse_command_line(prms._argc, prms._argv, desc), vm);
-			//po::notify(vm);
 			
 			if (!vm.count("p"))
 				port = PORT;
@@ -52,5 +51,6 @@ response server_parser::parse(boost::uint16_t& port, boost::uint16_t& fifo_size,
 		return response::ERROR_UNHANDLED_EXCEPTION;
 	}
 
+	fhw = std::min(fhw, fifo_size);
 	response::SUCCESS;
 }

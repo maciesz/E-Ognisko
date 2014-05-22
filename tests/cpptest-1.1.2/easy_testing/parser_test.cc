@@ -6,8 +6,8 @@
 
 #include "../../../main/parsers/client_parser.hpp"
 #include "../../../main/parsers/server_parser.hpp"
-#include "../../../main/headers/structures.hpp"
-#include "../../../main/headers/response.hpp"
+#include "../../../main/common/structures.hpp"
+#include "../../../main/common/response.hpp"
 
 int main(int argc, char** argv)
 {
