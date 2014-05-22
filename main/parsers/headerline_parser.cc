@@ -14,7 +14,8 @@ header_data headerline_parser::get_data(const char* headerline)
 	// Deklaracja listy wynikowej
 	std::vector<boost::uint16_t> param_list;
 	// Konwersja wszystkich dodatkowych parametrów na liczbowe
-	for (int i = 1; i< args.size(); ++i) {
+	const int size = static_cast<int>(args.size());
+	for (int i = 1; i< size; ++i) {
 		param_list.push_back(boost::lexical_cast<boost::uint16_t>(args[i]));
 	}
 	// Wyznaczenie nazwy głównej nagłówka

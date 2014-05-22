@@ -42,21 +42,26 @@ void preprocess(std::vector<std::string>& communicates)
 	header_factory fact;
 	headerline_parser header_parser;
 	int counter = 0;
-	for (int i = 0; i< communicates.size(); ++i) {
+	const int size = static_cast<int>(communicates.size());
+	for (int i = 0; i< size; ++i) {
 		try {
 			// String to char*
 			std::string str = communicates[i]; /*
-			char* headerline = new char[str.size() + 1];
-			std::strcpy(headerline, str.c_str());
 			// Przeparsuj linijkę na konkretne dane*/
 			const char* headerline = str.c_str();
 			const header_data data = headerline_parser::get_data(headerline);
 			//delete[] headerline;
 			// Dopasuj odpowiedni header
 			/*std::cout << "Cokolwiek\n";*/
-			base_header header = fact.match_header(data);
+			base_header* header = fact.match_header(data);
 			// Wypisz nazwę headera
-			std::cout << "Nazwa headera: " << header._header_name << "\n";
+
+			if (header->_header_name == std::string("UPLOAD")) {
+				std::cout << "Nazwa headera: " << header->_header_name << "\n";
+				upload_header* u_header = dynamic_cast<upload_header*>(header);
+				std::cout << "Nr: " << (u_header->_nr) << "\n";
+				delete u_header;
+			}
 		} catch (std::exception& ex) {
 			++counter;
 		}
@@ -78,6 +83,6 @@ int main()
 	build_incorrect(incorrect_communicates);
 	build_incorrect_with_letters(incorrect_with_letters);
 
-	preprocess(correct_communicates);
+	preprocess(incorrect_with_letters);
 	return 0;
 }

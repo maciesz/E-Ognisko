@@ -5,6 +5,7 @@
 
 #include <cstring>
 #include <vector>
+#include <iostream>
 
 #include "../exceptions/invalid_header_exception.hpp"
 
@@ -76,10 +77,13 @@ struct base_header
 	{
 	}
 
-	void set_parametres(const header_data& data) {}
-	
-	//virtual base_header get_instance();
-	virtual base_header get_instance() {}
+	virtual ~base_header()
+	{
+	}
+
+	virtual void set_parametres(const header_data& data) = 0;
+
+	virtual base_header* get_instance() = 0;
 
 	std::string _header_name;
 };
@@ -91,7 +95,7 @@ struct client_header: public base_header
 	{
 	}
 
-	virtual void set_parametres(const header_data& data)
+	void set_parametres(const header_data& data)
 	{
 		_header_name = data._header_name;
 
@@ -101,9 +105,9 @@ struct client_header: public base_header
 		_client_id = data._param_list[0];
 	}
 
-	base_header get_instance()
+	base_header* get_instance()
 	{
-		return client_header();
+		return new client_header;
 	}
 
 	boost::uint16_t _client_id;
@@ -116,7 +120,7 @@ struct upload_header: public base_header
 	{
 	}
 
-	virtual void set_parametres(const header_data& data)
+	void set_parametres(const header_data& data)
 	{
 		_header_name = data._header_name;
 
@@ -126,9 +130,9 @@ struct upload_header: public base_header
 		_nr = data._param_list[0];
 	}
 
-	base_header get_instance()
+	base_header* get_instance()
 	{
-		return upload_header();
+		return new upload_header;
 	}
 
 	boost::uint16_t _nr;
@@ -141,7 +145,7 @@ struct data_header: public base_header
 	{
 	}
 
-	virtual void set_parametres(const header_data& data)
+	void set_parametres(const header_data& data)
 	{
 		_header_name = data._header_name;
 
@@ -153,9 +157,9 @@ struct data_header: public base_header
 		_win = data._param_list[2];
 	}
 
-	base_header get_instance()
+	base_header* get_instance()
 	{
-		return data_header();
+		return new data_header;
 	}
 
 	boost::uint16_t _nr;
@@ -170,7 +174,7 @@ struct ack_header: public base_header
 	{
 	}
 
-	virtual void set_parametres(const header_data& data)
+	void set_parametres(const header_data& data)
 	{
 		_header_name = data._header_name;
 
@@ -180,10 +184,10 @@ struct ack_header: public base_header
 		_ack = data._param_list[0];
 		_win = data._param_list[1];
 	}
-
-	base_header get_instance()
+	
+	base_header* get_instance()
 	{
-		return ack_header();
+		return new ack_header;
 	}
 
 	boost::uint16_t _ack;
@@ -197,7 +201,7 @@ struct retransmit_header: public base_header
 	{
 	}
 
-	virtual void set_parametres(const header_data& data)
+	void set_parametres(const header_data& data)
 	{
 		_header_name = data._header_name;
 
@@ -207,9 +211,9 @@ struct retransmit_header: public base_header
 		_nr = data._param_list[0];
 	}
 	
-	base_header get_instance()
+	base_header* get_instance()
 	{
-		return retransmit_header();
+		return new retransmit_header;
 	}
 
 	boost::uint16_t _nr;
@@ -222,17 +226,18 @@ struct keepalive_header: public base_header
 	{
 	}
 
-	virtual void set_parametres(const header_data& data)
+	void set_parametres(const header_data& data)
 	{
+		std::cout << "UStawiam w KEEPALIVE\n";
 		_header_name = data._header_name;
 
 		if (data._param_list.size() != 0)
 			throw invalid_header_exception();
 	}
 
-	base_header get_instance()
+	base_header* get_instance()
 	{
-		return keepalive_header();
+		return new keepalive_header;
 	}
 };
 

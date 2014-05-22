@@ -35,5 +35,5 @@ response client_parser::parse(boost::uint16_t& port, std::string& server_name,
 		return response::ERROR_UNHANDLED_EXCEPTION;
 	}
 
-	response::SUCCESS;
+	return response::SUCCESS;
 }

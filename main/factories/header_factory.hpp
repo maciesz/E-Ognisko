@@ -15,8 +15,8 @@ class header_factory
 public:
 	header_factory();
 
-	base_header match_header(const header_data& data);
+	base_header* match_header(const header_data& data);
 private:
-	std::map<std::string, base_header> factory;
+	std::map<std::string, base_header*> factory;
 };
 #endif

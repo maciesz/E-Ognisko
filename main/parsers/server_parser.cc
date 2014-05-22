@@ -52,5 +52,5 @@ response server_parser::parse(boost::uint16_t& port, boost::uint16_t& fifo_size,
 	}
 
 	fhw = std::min(fhw, fifo_size);
-	response::SUCCESS;
+	return response::SUCCESS;
 }
