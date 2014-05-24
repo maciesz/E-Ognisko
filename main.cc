@@ -6,6 +6,7 @@
 #include "common/structures.hpp"
 #include "parsers/headerline_parser.hpp"
 #include "factories/header_factory.hpp"
+#include "parsers/client_parser.hpp"
 
 void build_correct(std::vector<std::string>& correct_communicates)
 {
