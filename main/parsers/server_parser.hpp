@@ -1,7 +1,7 @@
 #ifndef SERVER_PARSER_HPP
 #define SERVER_PARSER_HPP
 
-//// Biblioteki boost'owe
+// Biblioteki boost'owe
 #include <boost/program_options.hpp>
 #include <boost/cstdint.hpp>
 // Biblioteki standardowe
