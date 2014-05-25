@@ -110,7 +110,7 @@ struct client_header: public base_header
 		return new client_header;
 	}
 
-	boost::uint16_t _client_id;
+	boost::uint32_t _client_id;
 };
 
 // Nagłówek typu: UPLOAD [nr]
@@ -241,6 +241,7 @@ struct keepalive_header: public base_header
 	}
 };
 
+
 //=============================================================================
 //
 // Struktura przechowująca informacje o UPLOAD'zie klienta.
@@ -253,7 +254,24 @@ struct client_upload
 	{
 	}
 
-	const std::string message_;
-	const boost::uint32_t dgram_nr_;
+	const std::string _message_;
+	const boost::uint32_t _dgram_nr; // Datagramy pochodzące od serwera
+};
+
+
+//=============================================================================
+//
+// Struktura przechowująca wiadomość w postaci nagłówka oraz ciała wiadomości.
+//
+//=============================================================================
+struct message_structure
+{
+	message_structure(const std::string& header, const std::string& body)
+	: _header(header), _body(body)
+	{
+	}
+
+	const std::string _header;
+	const std::string _body;
 };
 #endif

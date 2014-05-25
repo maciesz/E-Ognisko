@@ -28,6 +28,9 @@ const boost::uint16_t CLIENT_BUFFER_LEN = 9096;
 // Ograniczenie na limit retransmisji
 const boost::uint16_t RETRANSMIT_LIMIT = 10;
 
+// Stała wpływająca na długość wiadomości z miksera
+const boost::uint16_t MULTIPLIER = 176;
+
 // Czas pomiędzy kolejnymi wywołaniami miksera(w milisekundach)
 const boost::uint16_t TX_INTERVAL = 5;
 

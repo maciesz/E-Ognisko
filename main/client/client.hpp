@@ -19,7 +19,8 @@
 #include <vector>
 #include <algorithm>
 
-#include "../common/header_titles.hpp" // TODO: Sprawdzić, czy można bezboleśnie się tego pozbyć(bo w niczym to jednak nie pomaga)
+#include "../message_converter/message_converter.hpp"
+#include "../common/header_titles.hpp"
 #include "../common/structures.hpp"
 #include "../common/global_variables.hpp"
 #include "../factories/header_factory.hpp"

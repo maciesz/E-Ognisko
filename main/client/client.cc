@@ -140,15 +140,7 @@ void client::handle_udp_connect(const boost::system::error_code& error)
 		boost::shared_ptr<std::string> header_s(
 			new std::string("CLIENT " + client_id_to_str + "\n")
 		);
-		// Zapamiętaj długość tekstu.
-		//const int header_s_size = header_s.size();
-		// Stwórz strumień i zainicjuj go wskazanym stringiem
-		/*std::stringstream binarydata_buf(header_s);
-		// Zapisz dane do streambufa
-		boost::asio::streambuf client_request;
-		std::ostream client_stream(&client_request);
-		client_stream.write(&binarydata_buf, sizeof(binarydata_buf));*/
-		// Wyślij komunikat inicjujący
+
 		udp_socket_.async_send( 
 			boost::asio::buffer(*header_s), //client_request,
 			boost::bind(&client::handle_client_dgram, this,
@@ -156,7 +148,7 @@ void client::handle_udp_connect(const boost::system::error_code& error)
 
 		// Przystąp do wysyłania keepalive'ów:
 		keepalive_timer_.expires_from_now(
-				boost::posix_time::milliseconds(keepalive_period_)
+			boost::posix_time::milliseconds(keepalive_period_)
 		);
 		keepalive_timer_.async_wait(
 			boost::bind(&client::send_keepalive_dgram, this)
@@ -227,24 +219,16 @@ void client::handle_read_datagram_header(const boost::system::error_code& error,
 		std::string whole_message;
 		std::copy(read_buf_.begin(), read_buf_.begin() + bytes_transferred, 
 			std::back_inserter(whole_message));
-		// Znajdź pierwszą pozycję znaku nowej linii wyznaczającej
-		// koniec nagłówka:
-		const size_t new_line_pos = whole_message.find(std::string("\n"));
-		header_str_ = std::string(whole_message, 0, new_line_pos - 1);
-		body_str_ = std::string(whole_message, new_line_pos + 1, 
-			bytes_transferred - new_line_pos);
-
-		// Wczytaj dane z read_bufordo stringa
-		/*std::istream is(&header_buffer_);
-		std::string s_header;
-		is >> s_header;*/
-		// Zwolnij bufor
-		//const size_t header_buffer_size = header_buffer_.size();
-		//header_buffer_.consume(header_buffer_size);
+		
+		const message_structure msg_structure = 
+			message_converter::divide_msg_into_sections(message);
+			
 		try {
-			std::string s_header(header_str_);
 			base_header* header = 
-				factory_.match_header(headerline_parser::get_data(s_header));
+				factory_.match_header(headerline_parser::get_data(
+					msg_structure.header
+					)
+				);
 			manage_read_header(header);
 		} catch (invalid_header_exception& ex) {
 			std::cerr << "Handle read datagram\n";

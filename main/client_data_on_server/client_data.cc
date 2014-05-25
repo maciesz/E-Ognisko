@@ -2,12 +2,14 @@
 
 client_data::client_data(
 		size_t max_queue_length, 
-		const std::string& endpoint, 
+		const std::string& endpoint,
+		const boost::asio::ip::udp::endpoint udp_endpoint,
 		boost::uint16_t fifo_high_watermark,
 		boost::uint16_t fifo_low_watermark,
 		boost::uint16_t buf_len
 	)
 :
+	udp_endpoint_(udp_endpoint),
 	max_queue_length_(max_queue_length),
 	endpoint_(endpoint),
 	fifo_high_watermark_(fifo_high_watermark),
@@ -57,7 +59,7 @@ void client_data::actualize_content_after_upload(
 	max_bytes_ = std::max(max_bytes_, queue_size_);
 }
 
-std::string client_data::print_statistics()
+std::string client_data::get_statistics()
 {
 	// Przygotuj raport jednostkowy:
 	// (bo tylko obiektu przechowującego dane konkretnego klienta)
@@ -118,13 +120,18 @@ std::vector<boost::int16_t>& client_data::get_client_msg_queue()
 	return queue_;
 }
 
-std::list<client_upload> client_data::get_last_dgrams(const boost::uint32_t inf_nr)
+std::list<std::string> client_data::get_last_dgrams(const boost::uint32_t inf_nr)
 {
-	std::list<client_upload> ret_list;
+	std::list<std::string> ret_list;
 	for (auto it = last_uploads_.begin(); it != last_uploads_.end(); ++it) {
 		if (it->dgram_nr_ >= inf_nr)
-			ret_list.push_back(*it);
+			ret_list.push_back(it->message_);
 	}
 
 	return ret_list;
+}
+
+size_t get_queue_size()
+{
+	return queue_size_;
 }

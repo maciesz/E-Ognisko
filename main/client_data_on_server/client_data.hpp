@@ -1,6 +1,7 @@
 #ifndef CLIENT_DATA_HPP
 #define CLIENT_DATA_HPP
 
+#include <boost/asio.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/lexical_cast.hpp>
 
@@ -22,7 +23,8 @@ public:
 	//=========================================================================
 	client_data(
 		size_t max_queue_length, 
-		const std::string& endpoint, 
+		const std::string& endpoint,
+		const boost::asio::ip::udp::endpoint udp_endpoint,
 		boost::uint16_t fifo_high_watermark, 
 		boost::uint16_t fifo_low_watermark,
 		boost::uint16_t buf_len);
@@ -40,14 +42,19 @@ public:
 	void actualize_content_after_upload(
 		std::vector<boost::int16_t>& upload_data);
 
-	std::string print_statistics();
+	std::string get_statistics();
 
 	queue_state rate_queue_state();
 
 	std::vector<boost::int16_t>& get_client_msg_queue();
 
-	std::list<client_upload> get_last_dgrams(
+	std::list<std::string> get_last_dgrams(
 		const boost::uint32_t inf_nr);
+
+	size_t get_queue_size();
+
+	// Endpoint faktyczny:
+	boost::asio::ip::udp::endpoint udp_endpoint_;
 private:
 	//=========================================================================
 	//
