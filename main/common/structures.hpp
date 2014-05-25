@@ -11,7 +11,7 @@
 
 //=============================================================================
 //
-// Struktura odpowiedzialna za transfer danych z kolejki o stanie ACTIVE
+// Struktura przechowująca dane z kolejki o stanie ACTIVE
 //
 //=============================================================================
 struct mixer_input
@@ -241,4 +241,19 @@ struct keepalive_header: public base_header
 	}
 };
 
+//=============================================================================
+//
+// Struktura przechowująca informacje o UPLOAD'zie klienta.
+//
+//=============================================================================
+struct client_upload
+{
+	client_upload(const std::string& upload_msg, boost::uint32_t dgram_nr) 
+	: message_(upload_msg), dgram_nr_(dgram_nr)
+	{
+	}
+
+	const std::string message_;
+	const boost::uint32_t dgram_nr_;
+};
 #endif

@@ -3,14 +3,16 @@
 client_data::client_data(
 		size_t max_queue_length, 
 		const std::string& endpoint, 
-		const boost::uint16_t fifo_high_watermark,
-		const boost::uint16_t fifo_low_watermark
+		boost::uint16_t fifo_high_watermark,
+		boost::uint16_t fifo_low_watermark,
+		boost::uint16_t buf_len
 	)
 :
 	max_queue_length_(max_queue_length),
 	endpoint_(endpoint),
 	fifo_high_watermark_(fifo_high_watermark),
 	fifo_low_watermark_(fifo_low_watermark),
+	last_uploads_max_size_(buf_len),
 	queue_size_(static_cast<boost::int16_t>(0)),
 	min_bytes_(static_cast<boost::int16_t>(0)),
 	max_bytes_(static_cast<boost::int16_t>(0))
@@ -101,4 +103,28 @@ void client_data::reset_statistics()
 	// Zainicjuj min_bytes_ i max_bytes_ aktualnym rozmiarem kolejki:
 	min_bytes_ = static_cast<boost::uint16_t>(queue_size_);
 	max_bytes_ = static_cast<boost::uint16_t>(queue_size_);
+}
+
+void client_data::add_to_upload_list(
+	const std::string& upload_msg, boost::uint32_t dgram_nr)
+{
+	last_uploads_.push_back(client_upload(upload_msg, dgram_nr));
+	if (last_uploads_.size() > last_uploads_max_size_)
+		last_uploads_.pop_front();
+}
+
+std::vector<boost::int16_t>& client_data::get_client_msg_queue()
+{
+	return queue_;
+}
+
+std::list<client_upload> client_data::get_last_dgrams(const boost::uint32_t inf_nr)
+{
+	std::list<client_upload> ret_list;
+	for (auto it = last_uploads_.begin(); it != last_uploads_.end(); ++it) {
+		if (it->dgram_nr_ >= inf_nr)
+			ret_list.push_back(*it);
+	}
+
+	return ret_list;
 }

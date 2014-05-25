@@ -5,10 +5,12 @@
 #include <boost/lexical_cast.hpp>
 
 #include <vector>
+#include <list>
 #include <iostream>
 #include <algorithm>
 
 #include "../common/queue_state.hpp"
+#include "../common/structures.hpp"
 
 class client_data
 {
@@ -18,9 +20,12 @@ public:
 	// Konstruktor i destruktory.
 	//
 	//=========================================================================
-	client_data(size_t max_queue_length, const std::string& endpoint, 
-		const boost::uint16_t fifo_high_watermark,
-		const boost::uint16_t fifo_low_watermark);
+	client_data(
+		size_t max_queue_length, 
+		const std::string& endpoint, 
+		boost::uint16_t fifo_high_watermark, 
+		boost::uint16_t fifo_low_watermark,
+		boost::uint16_t buf_len);
 
 	~client_data();
 
@@ -38,6 +43,11 @@ public:
 	std::string print_statistics();
 
 	queue_state rate_queue_state();
+
+	std::vector<boost::int16_t>& get_client_msg_queue();
+
+	std::list<client_upload> get_last_dgrams(
+		const boost::uint32_t inf_nr);
 private:
 	//=========================================================================
 	//
@@ -47,6 +57,9 @@ private:
 	void pop_front_sequence(boost::uint16_t shift);
 
 	void reset_statistics();
+
+	void add_to_upload_list(
+		const std::string& upload_msg, boost::uint32_t dgram_nr);
 
 
 	//=========================================================================
@@ -62,13 +75,17 @@ private:
 	// Warunki na stany kolejki:
 	const boost::uint16_t fifo_high_watermark_;
 	const boost::uint16_t fifo_low_watermark_;
+	// Długość listy ostatnich komunikatów:
+	const boost::uint16_t last_uploads_max_size_;
 	// Faktyczny rozmiar kolejki:
 	boost::uint16_t queue_size_;
 	// Kolejka:
 	std::vector<boost::int16_t> queue_;
-	// Minimalna ilość bajtów w kolejce od ostatniego raportu
+	// Lista ostatnich komunikatów:
+	std::list<client_upload> last_uploads_;
+	// Minimalna ilość bajtów w kolejce od ostatniego raportu:
 	boost::uint16_t min_bytes_;
-	// Maksymalna ilość bajtów w kolejce od ostatniego raportu
+	// Maksymalna ilość bajtów w kolejce od ostatniego raportu:
 	boost::uint16_t max_bytes_;
 };
 #endif
