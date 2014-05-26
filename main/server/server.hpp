@@ -19,12 +19,15 @@
 #include <cstdlib>
 #include <cmath>
 // Własne biblioteki/struktury
+#include "../common/header_titles.hpp"
 #include "../common/structures.hpp"
 #include "../common/global_variables.hpp"
 #include "../factories/header_factory.hpp"
 #include "../parsers/headerline_parser.hpp"
 #include "../client_data_on_server/client_data.hpp"
 #include "../message_converter/message_converter.hpp"
+#include "../string_converter/string_converter.hpp"
+#include "../mixer/mixer.hpp"
 #include "../string_converter/string_converter.hpp"
 
 class server
@@ -37,7 +40,7 @@ public:
 	//=========================================================================
 	server(
 		boost::asio::io_service& io_service,
-		const std::string& port, 
+		boost::uint16_t port, 
 		boost::uint16_t fifo_size,
 		boost::uint16_t fifo_low_watermark, 
 		boost::uint16_t fifo_high_watermark,
@@ -54,17 +57,48 @@ public:
 private:
 	//=========================================================================
 	//
-	// Handlery TCP.
+	// TCP.
 	//
 	//=========================================================================
-	void start_accepting_on_tcp();
+	void start_accepting_on_tcp(const boost::system::error_code& error);
 
-	void pass_clientid(const boost::system::error_code& error);
+	void pass_clientid(
+		boost::shared_ptr<boost::asio::ip::tcp::socket> tcp_socket,
+		const boost::system::error_code& error);
 
-	//void handle_receive_tcp_connect(const boost::system::error& error);
 
-	void handle_write_tcp_raport(const boost::system::error_code& error);
+	//=========================================================================
+	//
+	// UDP.
+	//
+	//=========================================================================
+	void handle_udp_message(const boost::system::error_code& error,
+		const size_t bytes_transferred);
 
+	void manage_read_header(base_header* header, std::string& body);
+
+	void handle_receive_udp(const boost::system::error_code& error);
+
+	void handle_data_transmission(
+		boost::shared_ptr<boost::asio::ip::udp::endpoint> remote_endpoint,
+		std::list<std::string>& dgram_list,
+		const boost::system::error_code& error);
+
+	std::string convert_remote_udp_endpoint_to_string();
+
+
+	//=========================================================================
+	//
+	// Raport.
+	//
+	//=========================================================================
+	void send_raport_info();
+
+	void handle_after_send_raport(
+		boost::shared_ptr<boost::asio::ip::tcp::socket> tcp_socket,
+		const boost::system::error_code& error);
+
+	void restart_timer();
 
 	//=========================================================================
 	//
@@ -73,12 +107,7 @@ private:
 	//=========================================================================
 	void mixer();
 
-	void handle_after_mixery(const boost::system::error_code& error);
-
-
-	//=========================================================================
-	//
-	//=========================================================================
+	void handle_next_mixery();
 
 
 	//=========================================================================
@@ -86,11 +115,7 @@ private:
 	// Funkcje na danych konkretnych klientów
 	//
 	//=========================================================================
-	int get_next_clientid();
-
-	std::string convert_remote_udp_endpoint_to_string();
-
-	std::list<client_upload> get_last_datagrams(const boost::uint32_t dgram_nr);
+	size_t get_next_clientid();
 
 
 	//=========================================================================
@@ -102,7 +127,6 @@ private:
 	// TCP Akceptor:
 	boost::asio::ip::tcp::acceptor tcp_acceptor_;
 	// Sockety:
-	boost::asio::ip::tcp::socket tcp_socket_;
 	boost::asio::ip::udp::socket udp_socket_;
 	// Resolvery:
 	boost::asio::ip::tcp::resolver tcp_resolver_;
@@ -110,11 +134,11 @@ private:
 	// Bufory do komunikacji po tcp:
 	boost::asio::streambuf header_buf_;
 	boost::asio::streambuf body_buf_;
-	boost::asio::streambuf raport_buf;
+	boost::asio::streambuf raport_buf_;
 	// Bufory do komunikacji po udp:
 	boost::array<char, CLIENT_BUFFER_LEN> read_buf_;
 	//boost::array<char, CLIENT_BUFFER_LEN> write_buf_;
-	std::vector<boost::int16_t> write_buf;
+	std::vector<boost::int16_t> write_buf_;
 	// Kolejny wolny identyfikator
 	boost::uint32_t next_clientid_;
 	// Numer aktualnie wysyłanego datagramu:
@@ -130,7 +154,7 @@ private:
 	const boost::uint16_t fifo_low_watermark_;
 	const boost::uint16_t fifo_high_watermark_;
 	// Port:
-	const std::string port_;
+	const boost::uint16_t port_;
 	// Długość kolejki zapamiętanych datagramów:
 	const boost::uint16_t buf_len_;
 	// Parametr powtarzalności mixowania
@@ -141,26 +165,30 @@ private:
 	//=========================================================================
 	// Mixer
 	//=========================================================================
-	mixer mixer_;
+	// Jako klasa statyczna
 
 	//=========================================================================
 	// Mapy:
 	//=========================================================================
 	
-	// [klucz]: endpoint klienta jako human readable form,
+	// [klucz]: endpoint UDP klienta jako human readable form,
 	// [wartość]: identyfikator przypisany konkretnemu klientowi
 	std::map<std::string, boost::uint32_t> client_map_;
 	// [klucz]: identyfikator klienta
 	// [wartość]: struktura client_data przechowująca
 	// -> kolejkę(bufor) klienta
-	// -> endpoint w postaci stringa
+	// -> endpoint UDP w postaci stringa
+	// -> endpoint w postaci klasycznej
 	// -> statystyki:
 	//      + minimalną liczbę bajtów w kolejce(od ostatniego raportu)
 	//      + maksymalną liczbę bajtów w kolejce(od ostatniego raportu)
 	//      + aktualny rozmiar kolejki
 	// -> listę ostatnich datagramów przesłanych przez klienta
-	std::map<boost::uint32_t, client_data> client_data_map_;
+	std::map<boost::uint32_t, client_data*> client_data_map_;
+	// [klucz]: endpoint TCP klienta w postaci klasycznej
+	// [wartość]: identyfikator klienta
+	std::map<boost::uint32_t, boost::asio::ip::tcp::endpoint> client_tcp_map_;
 	// Endpoint UPD dla gniazda klienta:
-	boost::asio::ip::udp::endpoint udp_remote_endpoint;
+	boost::asio::ip::udp::endpoint udp_remote_endpoint_;
 };	
 #endif

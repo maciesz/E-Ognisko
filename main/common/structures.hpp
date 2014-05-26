@@ -216,7 +216,7 @@ struct retransmit_header: public base_header
 		return new retransmit_header;
 	}
 
-	boost::uint16_t _nr;
+	boost::uint32_t _nr;
 };
 
 // Nagłówek typu: KEEPALIVE
@@ -250,11 +250,11 @@ struct keepalive_header: public base_header
 struct client_upload
 {
 	client_upload(const std::string& upload_msg, boost::uint32_t dgram_nr) 
-	: message_(upload_msg), dgram_nr_(dgram_nr)
+	: _message(upload_msg), _dgram_nr(dgram_nr)
 	{
 	}
 
-	const std::string _message_;
+	const std::string _message;
 	const boost::uint32_t _dgram_nr; // Datagramy pochodzące od serwera
 };
 
@@ -271,7 +271,7 @@ struct message_structure
 	{
 	}
 
-	const std::string _header;
-	const std::string _body;
+	std::string _header;
+	std::string _body;
 };
 #endif

@@ -124,14 +124,14 @@ std::list<std::string> client_data::get_last_dgrams(const boost::uint32_t inf_nr
 {
 	std::list<std::string> ret_list;
 	for (auto it = last_uploads_.begin(); it != last_uploads_.end(); ++it) {
-		if (it->dgram_nr_ >= inf_nr)
-			ret_list.push_back(it->message_);
+		if (it->_dgram_nr >= inf_nr)
+			ret_list.push_back(it->_message);
 	}
 
 	return ret_list;
 }
 
-size_t get_queue_size()
+size_t client_data::get_queue_size()
 {
-	return queue_size_;
+	return static_cast<size_t>(queue_size_);
 }

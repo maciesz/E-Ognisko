@@ -1,5 +1,7 @@
 #include "server.hpp"
 
+using boost::asio::ip::udp;
+using boost::asio::ip::tcp;
 server::server(
 		boost::asio::io_service& io_service,
 		boost::uint16_t port, 
@@ -10,15 +12,13 @@ server::server(
 		boost::uint16_t tx_interval
 	)
 :
-	//tcp_socket_(io_service),
-	//udp_socket_(io_service),
-	
-	tcp_acceptor_(io_service),
+	tcp_acceptor_(io_service, tcp::endpoint(tcp::v4(), port)),
+	udp_socket_(io_service, udp::endpoint(udp::v4(), port)),
 	tcp_resolver_(io_service),
 	udp_resolver_(io_service),
-	header_buf_(CLIENT_BUF_LEN),
-	body_buf_(CLIENT_BUF_LEN),
-	raport_buf_(CLIENT_BUF_LEN),
+	header_buf_(CLIENT_BUFFER_LEN),
+	body_buf_(CLIENT_BUFFER_LEN),
+	raport_buf_(CLIENT_BUFFER_LEN),
 	next_clientid_(0),
 	current_datagram_nr_(0),
 	mixer_buf_(std::vector<boost::int16_t>(0, fifo_size)),
@@ -32,35 +32,24 @@ server::server(
 	tx_interval_(tx_interval),
 	mixer_timer_(io_service),
 	raport_timer_(io_service),
-	mixer_(), // TODO: to samo co wyżej
 	client_map_(),
-	client_data_map_()
+	client_data_map_(),
+	client_tcp_map_()
 {
-	write_buf_(0, CLIENT_BUF_LEN);
+	write_buf_ = std::vector<boost::int16_t>(
+		static_cast<size_t>(CLIENT_BUFFER_LEN), static_cast<boost::int16_t>(0)
+	);
 
 	//============================//
 	// TCP                        //
 	//============================//
-	// Ustal endpoint TCP serwera:
-	boost::asio::ip::tcp::resolver::query tcp_query(port_);
-	boost::asio::ip::tcp::resolver::iterator tcp_endpoint_iterator = 
-		tcp_resolver_.resolve(tcp_query);
-	// Zainicjuj gniazdo do komunikacji po TCP:
-	tcp_socket_(io_service, tcp_endpoint_iterator);
-	// Zacznij akceptować połączenia:
-	acceptor_.async_accept(tcp_socket_,
-		boost::bind(&server::pass_clientid, this, 
-			boost::asio::placeholders::error));
+	boost::bind(&server::start_accepting_on_tcp, this,
+		boost::asio::placeholders::error
+	);
 
 	//============================//
 	// UDP.                       //
 	//============================//
-	// Ustal endpoint UDP
-	boost::asio::ip::udp::resolver::query udp_query(port_);
-	boost::asio::ip::udp::resolver::iterator udp_endpoint_iterator =
-		udp_resolver_.resolve(udp_query);
-	// Przygotuj gniazdo do komunikacji po UDP:
-	udp_socket_(io_service, udp_endpoint_iterator);
 	// Zacznij nasłuchiwać na gnieździe UDP:
 	udp_socket_.async_receive_from(
 		boost::asio::buffer(read_buf_), udp_remote_endpoint_,
@@ -102,8 +91,9 @@ void server::mixer()
 	size_t inputs_size = 0;
 	// Wyznacz listę id tych klientów, których kolejki są w stanie ACTIVE:
 	for (auto it = client_map_.begin(); it != client_map_.end(); ++it) {
-		const boost::uint32_t clientid = client_map_[it->second];
-		queue_state state = client_data_map_[clientid].rate_queue_state();
+		const size_t clientid = static_cast<size_t>(it->second);
+		queue_state state = 
+			client_data_map_[clientid]->rate_queue_state();
 
 		if (state == queue_state::ACTIVE) {
 			active_queue_clients_id.push_back(it->second);
@@ -115,12 +105,13 @@ void server::mixer()
 
 	int next = 0;
 	for (auto it = active_queue_clients_id.begin(); 
-		it != active_queue_clients_id.end() ++it) {
+		it != active_queue_clients_id.end(); ++it) {
+		const size_t idx = static_cast<size_t>(*it);
 
-		inputs[next].len = 2 * client_data_map_[*it].get_queue_size();
+		inputs[next].len = 2 * client_data_map_[idx]->get_queue_size();
 		inputs[next].consumed = 0;
 		inputs[next].data = static_cast<void*>(
-			client_data_map_[*it].get_client_msg_queue()
+			&(client_data_map_[idx]->get_client_msg_queue())
 		);
 		next++;
 	} next = 0;
@@ -131,7 +122,7 @@ void server::mixer()
 	// Podaj częstotliwość wywołania mixera po skonwertowaniu na pożądany typ:
 	unsigned long tx_interval_ms = static_cast<unsigned long>(tx_interval_);
 	// Poproś miksera, aby wymieszał co trzeba:
-	mixer_.mixer(
+	mixer::mix(
 		&inputs[0],
 		inputs_size,
 		output_buf,
@@ -140,55 +131,83 @@ void server::mixer()
 	);
 	// Zaktualizuj dane wszystkich wyżej rozpatrzonych klientów:
 	for (auto it = active_queue_clients_id.begin(); 
-		it != active_queue_clients_id.end() ++it) {
-		client_data_map_[*it].actualize_content_after_mixery(inputs[next].consumed);
+		it != active_queue_clients_id.end(); ++it) {
+		const size_t idx = static_cast<size_t>(*it);
+
+		client_data_map_[idx]->actualize_content_after_mixery(
+			inputs[next].consumed
+		);
 	}
 	// Wyślij do każdego z klientów wynik mixera:
 	for(auto it = client_data_map_.begin(); 
 		it != client_data_map_.end(); ++it) {
 
 		boost::asio::ip::udp::endpoint receiver_endpoint(
-			it->second->remote_endpoint
+			it->second->udp_endpoint_
 		);
 
-		udp_socket_.async_sendto(
-			boost::asio::buffer(write_buf_),
-			receiver_endpoint
+		udp_socket_.async_send_to(
+			boost::asio::buffer(write_buf_), receiver_endpoint,
+			boost::bind(&server::handle_next_mixery, this)
 		);
 	}
+	// Rozpocznij oczekiwanie na kolejne wywołanie miksera:
+	handle_next_mixery();
 }
 
-Sprawdź server::send_raport_info()
+void server::send_raport_info()
 {
 	std::string final_raport = std::string("\n");
 	// TODO: Wybierz tylko tych, z którymi połączenie się nie urwało.
 	//
 	// Założenie TYMCZASOWE: Wszyscy są wciąż aktywni ;-).
 	for(auto it = client_map_.begin(); it != client_map_.end(); ++it) {
-		final_raport += client_data_map_[it->second].get_statistics();
+		const size_t idx = static_cast<size_t>(it->second);
+		final_raport += client_data_map_[idx]->get_statistics();
 	}
 
-	boost::asio::async_write(tcp_socket_, 
-		boost::asio::buffer(final_raport),
-		boost::bind(
-			&server::handle_after_send_raport, this,
-			boost::asio::placeholders::error
-		)
-	);
+	for (auto it = client_tcp_map_.begin(); 
+		it != client_tcp_map_.end(); ++it) {
+
+		boost::shared_ptr<boost::asio::ip::tcp::socket> tcp_socket(
+			new boost::asio::ip::tcp::socket(
+				tcp_acceptor_.get_io_service(),
+				it->second
+			)
+		);
+
+		boost::asio::async_write(*tcp_socket, 
+			boost::asio::buffer(final_raport),
+			boost::bind(
+				&server::handle_after_send_raport, this, tcp_socket,
+				boost::asio::placeholders::error
+			)
+		);
+	}
+
+	restart_timer();
 }
 
-void server::handle_after_send_raport(const boost::system::error_code& error)
+void server::handle_after_send_raport(
+	boost::shared_ptr<boost::asio::ip::tcp::socket> tcp_socket,
+	const boost::system::error_code& error)
 {
 	if (!error) {
-		raport_timer_.expires_from_now(
-			boost::posix_time::seconds(1)
-		);
-		raport_timer_.async_wait(
-			boost::bind(&server::send_raport_info, this)
-		);
+
 	} else {
 		std::cerr << "Handle after send raport\n";
 	}
+}
+
+
+void server::restart_timer()
+{
+	raport_timer_.expires_from_now(
+		boost::posix_time::seconds(1)
+	);
+	raport_timer_.async_wait(
+		boost::bind(&server::send_raport_info, this)
+	);
 }
 
 void server::handle_udp_message(const boost::system::error_code& error,
@@ -201,16 +220,18 @@ void server::handle_udp_message(const boost::system::error_code& error,
 		std::copy(read_buf_.begin(), read_buf_.begin() + bytes_transferred, 
 		std::back_inserter(whole_message));
 
-		const message_structure msg_structure = 
-			message_converter::divide_msg_into_sections(message);
+		message_structure msg_structure = 
+			message_converter::divide_msg_into_sections(
+				whole_message, bytes_transferred
+			);
 
 		try {
 			base_header* header = 
 				factory_.match_header(headerline_parser::get_data(
-					msg_structure.header
+					msg_structure._header
 					)
 				);
-			manage_read_header(header, msg_structure.body);
+			manage_read_header(header, msg_structure._body);
 		} catch (invalid_header_exception& ex) {
 			std::cerr << "Handle read datagram\n";
 		}
@@ -219,7 +240,7 @@ void server::handle_udp_message(const boost::system::error_code& error,
 	}
 }
 
-void server::manage_read_header(base_header* header, const std::string& body)
+void server::manage_read_header(base_header* header, std::string& body)
 {
 	if (header->_header_name == CLIENT) {
 		boost::shared_ptr<client_header> c_header(
@@ -233,12 +254,12 @@ void server::manage_read_header(base_header* header, const std::string& body)
 		const std::string client_str_udp_endpoint =
 			convert_remote_udp_endpoint_to_string();
 		// Zbuduj strukturę danych dla klienta:
-		client_data data(
+		client_data* c_data = new client_data(
 			fifo_size_, 
 			client_str_udp_endpoint, 
 			udp_remote_endpoint_, 
-			fifo_high_watermark, 
-			fifo_low_watermark, 
+			fifo_high_watermark_, 
+			fifo_low_watermark_, 
 			buf_len_
 		);
 
@@ -247,11 +268,11 @@ void server::manage_read_header(base_header* header, const std::string& body)
 		client_map_.insert(
 			std::make_pair(
 				client_str_udp_endpoint, 
-				_client_id
+				client_id
 			)
 		);
 		// 2) client_data_map_:
-		client_data_map_.insert(std::make_pair(_client_id, data));
+		client_data_map_.insert(std::make_pair(client_id, c_data));
 	} else if (header->_header_name == RETRANSMIT) {
 		boost::shared_ptr<retransmit_header> r_header(
 			dynamic_cast<retransmit_header*>(header)
@@ -261,26 +282,28 @@ void server::manage_read_header(base_header* header, const std::string& body)
 		std::string client_str_udp_endpoint =
 			convert_remote_udp_endpoint_to_string();
 		// Ściągnij identyfikator klienta na podstawie endpointa:
-		boost::uint32_t client_id = client_map_[client_str_udp_endpoint];
+		const size_t client_id = static_cast<size_t>(
+			client_map_[client_str_udp_endpoint]
+		);
 		// Ściągnij nr, od którego klient prosi o retransmisję:
-		retransmit_inf_nr = header->_nr;
+		boost::uint32_t retransmit_inf_nr = r_header->_nr;
 		// Ściągnij wszystkie dgramy zapamiętane w buforze rezerwowym
 		// spełniające kryterium wskazane przez klienta:
 		std::list<std::string> dgram_list = 
-			client_data_map_[client_id].get_last_dgrams(retransmit_inf_nr);
+			client_data_map_[client_id]->get_last_dgrams(retransmit_inf_nr);
 
 		// Przejdź do transmitowania i jednocześnie w tryb nasłuchiwania:
 		//
 		// Retransmisja:
 		// 1) Utwórz inteligentny wskaźnik na kopię aktualnego endpointa:
-		boost::shared_ptr<boost::asio::ip:udp::endpoint> remote_endpoint(
+		boost::shared_ptr<boost::asio::ip::udp::endpoint> remote_endpoint(
 			new boost::asio::ip::udp::endpoint(udp_remote_endpoint_)
 		);
 		// Wywołaj funkcję retransmisji z parametrami:
 		// -> aktualnego endpointa,
 		// -> listą datagramów
 		boost::bind(&server::handle_data_transmission, this,
-			remote_endpoint, dgram_list);
+			remote_endpoint, dgram_list, boost::asio::placeholders::error);
 	} else if (header->_header_name == UPLOAD) {
 		boost::shared_ptr<upload_header> u_header(
 			dynamic_cast<upload_header*>(header)
@@ -292,9 +315,9 @@ void server::manage_read_header(base_header* header, const std::string& body)
 		const std::string client_str_udp_endpoint =
 			convert_remote_udp_endpoint_to_string();
 		// Ściągnij identyfikator klienta:
-		boost::uint32_t clientid = client_map_[client_str_udp_endpoint];
+		const size_t clientid = client_map_[client_str_udp_endpoint];
 		// Zaktualizuj dane po uploadzie w mapie danych klienta:
-		client_data_map_[clientid].actualize_content_after_upload(body_vector);
+		client_data_map_[clientid]->actualize_content_after_upload(body_vector);
 	} else if (header->_header_name == KEEPALIVE) {
 		// Odznacz jakoś czas ostatniej rozmowy:
 	}
@@ -329,7 +352,7 @@ void server::handle_data_transmission(
 	if (!error) {
 		const size_t dgram_list_size = dgram_list.size();
 		if (dgram_list_size > 0) {
-			boost::shared_ptr<std::string> dgram(dgram_list.back());
+			boost::shared_ptr<std::string> dgram(new std::string(dgram_list.back()));
 			dgram_list.pop_back();
 			udp_socket_.async_send_to(
 				boost::asio::buffer(*dgram), *remote_endpoint,
@@ -351,27 +374,42 @@ void server::handle_data_transmission(
 void server::start_accepting_on_tcp(const boost::system::error_code& error)
 {
 	if (!error) {
-		acceptor_.async_accept(tcp_socket_,
-			boost::bind(&server::pass_clientid, this, 
+
+		boost::shared_ptr<boost::asio::ip::tcp::socket> tcp_socket(
+			new boost::asio::ip::tcp::socket(tcp_acceptor_.get_io_service())
+		);
+
+		tcp_acceptor_.async_accept(*tcp_socket,
+			boost::bind(&server::pass_clientid, this, tcp_socket, 
 				boost::asio::placeholders::error));
 	} else {
 		std::cerr << "Start accepting on TCP\n";
 	}
 }
 
-void server::pass_clientid(const boost::)
+void server::pass_clientid(
+	boost::shared_ptr<boost::asio::ip::tcp::socket> tcp_socket,
+	const boost::system::error_code& error)
 {
 	if (!error) {
 		std::string msg(
 			std::string("CLIENT ") +
-			boost::lexical_cast<std::string>(get_next_clientid) +
+			boost::lexical_cast<std::string>(get_next_clientid()) +
 			"\n"
 		);
 
-		boost::asio::async_write(tcp_socket_, 
+		// Dodaj nową parę [klucz, wartość] = <tcp_endpoint, next_clientid>:
+		client_tcp_map_.insert(
+			std::make_pair(
+				next_clientid_,
+				tcp_socket->remote_endpoint()
+			)
+		);
+
+		boost::asio::async_write(*tcp_socket, 
 			boost::asio::buffer(msg),
 			boost::bind(&server::start_accepting_on_tcp, this,
-				boost::asio::placeholders_error));
+				boost::asio::placeholders::error));
 	} else {
 		std::cerr << "Pass clientid\n";
 	}
@@ -397,3 +435,7 @@ std::string server::convert_remote_udp_endpoint_to_string()
 	return stream.str();
 }
 
+size_t server::get_next_clientid()
+{
+	return ++next_clientid_;
+}

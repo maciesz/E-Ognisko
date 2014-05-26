@@ -1,7 +1,7 @@
 #include "message_converter.hpp"
 
 message_structure message_converter::divide_msg_into_sections(
-	const std::string& msg)
+	std::string& msg, size_t bytes_transferred)
 {
 	// Znajdź pierwszą pozycję znaku nowej linii wyznaczającej
 	// koniec nagłówka:

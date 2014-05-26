@@ -4,8 +4,8 @@
 
 #include "mixer.hpp"
 
-void Mixer::mixer(mixer_input* inputs, size_t n, 
-		void* output_buf, size_t* output_size, unsigned long tx_interval_ms) const
+void mixer::mix(mixer_input* inputs, size_t n, 
+		void* output_buf, size_t* output_size, unsigned long tx_interval_ms)
 {
 	// Wyznacz rozmiar danych, który zostanie zapisany do bufora(w bajtach)
 	const size_t requested_length = MULTIPLIER * tx_interval_ms;
@@ -82,7 +82,7 @@ void Mixer::mixer(mixer_input* inputs, size_t n,
 	*output_size = out_size;
 }
 
-void Mixer::init_consumed_bytes(mixer_input* inputs, const int size) const
+void mixer::init_consumed_bytes(mixer_input* inputs, const int size)
 {
 	// Zainicjuj liczbę skonsumowanych bajtów w każdej kolejce FIFO
 	for (int i = 0; i< size; ++i) {
@@ -90,7 +90,7 @@ void Mixer::init_consumed_bytes(mixer_input* inputs, const int size) const
 	}
 }
 
-size_t Mixer::get_total_bytes(const mixer_input* inputs, const int size) const
+size_t mixer::get_total_bytes(const mixer_input* inputs, const int size)
 {
 	size_t total_bytes = 0;
 	// Wyznacz sumaryczną liczbę bajtów możliwą do skonsumowania

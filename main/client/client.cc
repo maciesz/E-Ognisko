@@ -165,14 +165,6 @@ void client::send_keepalive_dgram()
 	boost::shared_ptr<std::string> header_s(
 		new std::string("KEEPALIVE\n")
 	);
-	// Zapamiętaj długość wiadomości:
-	//const int header_s_size = header_s.size();
-	/*// Stwórz strumień i zainicjuj go wskazanym stringiem
-	std::stringstream binarydata_buf(header_s);
-	// Zapisz dane do streambufa
-	boost::asio::streambuf keepalive_request;
-	std::ostream keepalive_stream(&keepalive_request);
-	keepalive_stream.write(&binarydata_buf, sizeof(binarydata_buf));*/
 
 	udp_socket_.async_send(
 		boost::asio::buffer(*header_s),
@@ -221,12 +213,14 @@ void client::handle_read_datagram_header(const boost::system::error_code& error,
 			std::back_inserter(whole_message));
 		
 		const message_structure msg_structure = 
-			message_converter::divide_msg_into_sections(message);
+			message_converter::divide_msg_into_sections(
+				whole_message, bytes_transferred
+			);
 			
 		try {
 			base_header* header = 
 				factory_.match_header(headerline_parser::get_data(
-					msg_structure.header
+						msg_structure._header
 					)
 				);
 			manage_read_header(header);
@@ -263,12 +257,7 @@ void client::manage_read_header(base_header* header)
 				last_header_title_ = d_header->_header_name;
 
 				// Wypisz body wiadomości na STDOUT
-				//std::cout << body_str_;
 				handle_write_to_stdout();
-				/*udp_socket_.async_receive(
-					boost::asio::buffer(body_buffer_),
-					boost::bind(&client::handle_write_to_stdout, this,
-						boost::asio::placeholders::error));*/
 			}
 			// Jeżeli otrzymaliśmy dwukrotnie datagram DATA,
 			// bez potwierdzenia ostatnio wysłanego datagramu,
@@ -329,15 +318,6 @@ void client::manage_read_header(base_header* header)
 				boost::shared_ptr<std::string> header_s(
 					new std::string("CLIENT " + client_id_to_str + "\n")
 				);
-				// Zapamiętaj długość nagłówka:
-				//const int header_s_size = header_s.size();
-				/*// Stwórz strumień i zainicjuj go wskazanym stringiem
-				std::stringstream binarydata_buf(header_s);
-				// Zapisz dane do streambufa
-				boost::asio::streambuf client_request;
-				std::ostream client_stream(&client_request);
-				client_stream.write(&binarydata_buf, sizeof(binarydata_buf));*/
-				// Wyślij komunikat inicjujący
 				udp_socket_.async_send(
 					boost::asio::buffer(*header_s),
 					boost::bind(&client::handle_client_dgram, this,
@@ -362,9 +342,6 @@ void client::manage_read_header(base_header* header)
 void client::handle_read_from_stdin(const boost::system::error_code& error)
 {
 	if (!error) {
-		// Zwolnij bufor ciała komunikatu od serwera:
-		//const size_t body_buffer_size = body_buffer_.size();
-		//body_buffer_.consume(body_buffer_size);
 		// Wczytaj dane z bufora do stringa
 		std::istream is(&input_buffer_);
 		std::string s_dgram;
@@ -386,17 +363,7 @@ void client::handle_read_from_stdin(const boost::system::error_code& error)
 		boost::shared_ptr<std::string> message(
 			new std::string(last_datagram_)
 		);
-		// Zapamiętaj rozmiar komunikatu:
-		//const int last_datagram_size = last_datagram_.size();
-		/*
-		// Stwórz strumień i zainicjuj go wskazanym stringiem
-		std::stringstream binarydata_buf(last_datagram_);
-		// Zapisz dane do streambufa
-		boost::asio::streambuf write_request;
-		std::ostream write_stream(&write_request);
-		write_stream.write(&binarydata_buf, sizeof(binarydata_buf));
-		// 
-		*/
+
 		// Zapisz do udp_socket'a
 		udp_socket_.async_send(
 			boost::asio::buffer(*message),
@@ -424,15 +391,6 @@ void client::handle_after_read_from_stdin(const boost::system::error_code& error
 
 void client::resend_last_datagram()
 {
-/*
-	// Stwórz strumień i zainicjuj go wskazanym stringiem
-	std::stringstream binarydata_buf(last_datagram_);
-	// Zapisz dane do streambufa
-	boost::asio::streambuf resend_request;
-	std::ostream resend_stream(&resend_request);
-	resend_stream.write(&binarydata_buf, sizeof(binarydata_buf));
-	*/
-	//const int last_datagram_size = last_datagram_.size();
 	boost::shared_ptr<std::string> resend_message (
 		new std::string(last_datagram_)
 	);

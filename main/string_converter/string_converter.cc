@@ -8,11 +8,12 @@ std::vector<boost::int16_t> string_converter::to_vector_int16(
 	// Skonwertuj stringa na wektor charów:
 	std::vector<char> c_vector(body.begin(), body.end());
 	// Stwórz inteligentny wskaźnik 16-bitowy ze znakiem:
-	boost::shared_ptr<boost::int16_t> s_ptr(
+	boost::int16_t* s_ptr(
 		reinterpret_cast<boost::int16_t*>(c_vector.data())	
 	);
 	// Skonwertuj go na wektor liczb 16-bitowych ze znakiem:
-	std::vector<boost::int16_t> s_vector(ptr, ptr + (body_size / 2));
+	std::vector<boost::int16_t> s_vector(s_ptr, s_ptr + (body_size / 2));
 
+	delete s_ptr;
 	return s_vector;
 }
