@@ -1,5 +1,5 @@
-#ifndef QUEUE_STATE_HPP
-#define QUEUE_STATE_HPP
+#ifndef QUEUE_STATE_HH
+#define QUEUE_STATE_HH
 
 enum class queue_state
 {

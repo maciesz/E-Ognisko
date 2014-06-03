@@ -1,9 +1,9 @@
-#ifndef MESSAGE_CONVERTER_HPP
-#define MESSAGE_CONVERTER_HPP
+#ifndef MESSAGE_CONVERTER_HH
+#define MESSAGE_CONVERTER_HH
 
 #include <string>
 
-#include "../common/structures.hpp"
+#include "../common/structures.hh"
 
 class message_converter
 {

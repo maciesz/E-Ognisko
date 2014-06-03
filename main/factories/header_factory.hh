@@ -1,14 +1,12 @@
-#ifndef HEADER_FACTORY_HPP
-#define HEADER_FACTORY_HPP
-
-#include <boost/cstdint.hpp>
+#ifndef HEADER_FACTORY_HH
+#define HEADER_FACTORY_HH
 
 #include <map>
 #include <utility>
 #include <iostream>
 
-#include "../common/structures.hpp"
-#include "../exceptions/invalid_header_exception.hpp"
+#include "../common/structures.hh"
+#include "../exceptions/invalid_header_exception.hh"
 
 class header_factory
 {

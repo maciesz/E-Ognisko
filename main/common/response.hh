@@ -1,5 +1,5 @@
-#ifndef RESPONSE_HPP
-#define RESPONSE_HPP
+#ifndef RESPONSE_HH
+#define RESPONSE_HH
 
 enum class response
 {

@@ -1,6 +1,6 @@
-#include "string_converter.hpp"
+#include "string_converter.hh"
 
-std::vector<boost::int16_t> string_converter::to_vector_int16(
+std::vector<std::int16_t> string_converter::to_vector_int16(
 	std::string& body)
 {
 	// Zapamiętaj długość stringa:
@@ -8,12 +8,12 @@ std::vector<boost::int16_t> string_converter::to_vector_int16(
 	// Skonwertuj stringa na wektor charów:
 	std::vector<char> c_vector(body.begin(), body.end());
 	// Stwórz inteligentny wskaźnik 16-bitowy ze znakiem:
-	boost::int16_t* s_ptr(
-		reinterpret_cast<boost::int16_t*>(c_vector.data())	
+	std::int16_t* s_ptr(
+		reinterpret_cast<std::int16_t*>(c_vector.data())	
 	);
 	// Skonwertuj go na wektor liczb 16-bitowych ze znakiem:
-	std::vector<boost::int16_t> s_vector(s_ptr, s_ptr + (body_size / 2));
+	std::vector<std::int16_t> s_vector(s_ptr, s_ptr + (body_size / 2));
 
-	delete s_ptr;
+	//delete s_ptr;
 	return s_vector;
 }

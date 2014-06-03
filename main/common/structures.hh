@@ -1,19 +1,18 @@
-#ifndef STRUCTURES_HPP
-#define STRUCTURES_HPP
+#ifndef STRUCTURES_HH
+#define STRUCTURES_HH
 
-#include <boost/cstdint.hpp>
-
+#include <cstdint>
 #include <cstring>
 #include <vector>
 #include <iostream>
 
-#include "../exceptions/invalid_header_exception.hpp"
+#include "../exceptions/invalid_header_exception.hh"
 
-//=============================================================================
-//
-// Struktura przechowująca dane z kolejki o stanie ACTIVE
-//
-//=============================================================================
+//===========================================================================//
+//                                                                           //
+// Struktura przechowująca dane z kolejki o stanie ACTIVE.                   //
+//                                                                           //
+//===========================================================================//
 struct mixer_input
 {
 	// Wskaźnik na dane w FIFO
@@ -26,12 +25,12 @@ struct mixer_input
 };
 
 
-//=============================================================================
-//
-// Struktura opakowująca argumenty wywołania programu,
-// które zostaną przekazane do parsera.
-//
-//=============================================================================
+//===========================================================================//
+//                                                                           //
+// Struktura opakowująca argumenty wywołania programu,                       //
+// które zostaną przekazane do parsera.                                      //
+//                                                                           //
+//===========================================================================//
 struct program_parametres
 {
 	program_parametres(int argc, char** argv) 
@@ -44,29 +43,29 @@ struct program_parametres
 };
 
 
-//=============================================================================
-//
-// Struktura przechowująca informacje dotyczące nagłówka wiadomości.
-//
-//=============================================================================
+//===========================================================================//
+//                                                                           //
+// Struktura przechowująca informacje dotyczące nagłówka wiadomości.         //
+//                                                                           //
+//===========================================================================//
 struct header_data
 {
 	header_data(const std::string& header_name, 
-		const std::vector<boost::uint16_t>& param_list) 
+		const std::vector<std::uint32_t>& param_list) 
 	: _header_name(header_name), _param_list(param_list)
 	{
 	}
 
 	const std::string _header_name;
-	const std::vector<boost::uint16_t> _param_list;
+	const std::vector<std::uint32_t> _param_list;
 };
 
 
-//=============================================================================
-//
-// Struktury nagłówkowe.
-//
-//=============================================================================
+//===========================================================================//
+//                                                                           //
+// Struktury nagłówkowe.                                                     //
+//                                                                           //
+//===========================================================================//
 struct base_header
 {
 	// Konstruktor przyjmujący jako nazwę rodzaj wiadomości
@@ -110,7 +109,7 @@ struct client_header: public base_header
 		return new client_header;
 	}
 
-	boost::uint32_t _client_id;
+	std::uint32_t _client_id;
 };
 
 // Nagłówek typu: UPLOAD [nr]
@@ -135,7 +134,7 @@ struct upload_header: public base_header
 		return new upload_header;
 	}
 
-	boost::uint16_t _nr;
+	std::uint32_t _nr;
 };
 
 // Nagłówek typu: DATA [nr] [ack] [win]
@@ -162,9 +161,9 @@ struct data_header: public base_header
 		return new data_header;
 	}
 
-	boost::uint16_t _nr;
-	boost::uint16_t _ack;
-	boost::uint16_t _win;
+	std::uint32_t _nr;
+	std::uint32_t _ack;
+	std::uint32_t _win;
 };
 
 // Nagłówek typu: ACK [ack] [win]
@@ -190,8 +189,8 @@ struct ack_header: public base_header
 		return new ack_header;
 	}
 
-	boost::uint16_t _ack;
-	boost::uint16_t _win;
+	std::uint32_t _ack;
+	std::uint32_t _win;
 };
 
 // Nagłówek typu: RETRANSMIT [nr]
@@ -216,7 +215,7 @@ struct retransmit_header: public base_header
 		return new retransmit_header;
 	}
 
-	boost::uint32_t _nr;
+	std::uint32_t _nr;
 };
 
 // Nagłówek typu: KEEPALIVE
@@ -242,28 +241,28 @@ struct keepalive_header: public base_header
 };
 
 
-//=============================================================================
-//
-// Struktura przechowująca informacje o UPLOAD'zie klienta.
-//
-//=============================================================================
-struct client_upload
+//===========================================================================//
+//                                                                           //
+// Struktura przechowująca informacje o UPLOAD'zie klienta.                  //
+//                                                                           //
+//===========================================================================// 
+struct retransmit_dgram
 {
-	client_upload(const std::string& upload_msg, boost::uint32_t dgram_nr) 
-	: _message(upload_msg), _dgram_nr(dgram_nr)
+	retransmit_dgram(const std::string& dgram_msg, std::uint32_t dgram_nr) 
+	: _message(dgram_msg), _dgram_nr(dgram_nr)
 	{
 	}
 
 	const std::string _message;
-	const boost::uint32_t _dgram_nr; // Datagramy pochodzące od serwera
+	const std::uint32_t _dgram_nr; // Datagramy pochodzące od serwera
 };
 
 
-//=============================================================================
-//
-// Struktura przechowująca wiadomość w postaci nagłówka oraz ciała wiadomości.
-//
-//=============================================================================
+//===========================================================================//
+//                                                                           //
+// Struktura przechowująca treść w postaci nagłówka oraz ciała wiadomości.   //
+//                                                                           //
+//===========================================================================//
 struct message_structure
 {
 	message_structure(const std::string& header, const std::string& body)

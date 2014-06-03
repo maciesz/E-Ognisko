@@ -1,8 +1,4 @@
-#include <climits>
-#include <algorithm>
-#include <set>
-
-#include "mixer.hpp"
+#include "mixer.hh"
 
 void mixer::mix(mixer_input* inputs, size_t n, 
 		void* output_buf, size_t* output_size, unsigned long tx_interval_ms)
@@ -18,17 +14,22 @@ void mixer::mix(mixer_input* inputs, size_t n,
 
 	// Inicjalizacja struktury:
 	const int active_queues = static_cast<int>(n);
+	/*std::cerr << "-----------------------------------------------\n";
+	std::cerr << "Mikser.\n";
+	std::cerr << "Aktywnych kolejek mamy: " << active_queues << "\n";
+	std::cerr << "\n";
+	std::cerr << "-----------------------------------------------\n";*/
 	for (int i = 0; i< active_queues; ++i)
 		set.insert(i);
 
 	// Struktura przechowująca kolejki FIFO:
-	std::vector<boost::int16_t>** data = new std::vector<boost::int16_t>*[active_queues + 1];
+	std::vector<std::int16_t>** data = new std::vector<std::int16_t>*[active_queues + 1];
 
 	// Inicjalizacja struktury:
 	for (int i = 0; i< active_queues; ++i)
 		if (inputs[i].len > 1) {
 
-			data[i] = static_cast<std::vector<boost::int16_t>*>(inputs[i].data);
+			data[i] = static_cast<std::vector<std::int16_t>*>(inputs[i].data);
 
 		}
 
@@ -38,11 +39,11 @@ void mixer::mix(mixer_input* inputs, size_t n,
 	size_t idx;
 
 	// Castowanie bufora danych wyjściowych na typ domyślnie przyjęty w serwerze
-	std::vector<boost::int16_t>* output_data_buf = static_cast<std::vector<boost::int16_t>*>(output_buf);
+	std::int16_t* output_data_buf = static_cast<std::int16_t*>(output_buf);
 
 
 	// Uzupełnianie bufora wynikowego:
-	while (2 * iteration < out_size) {
+	while (2 * iteration < out_size /*requested_length*/) {
 		shorts_sum = 0;
 
 		// Przejdź po wszystkich niepustych kolejkach:
@@ -65,13 +66,16 @@ void mixer::mix(mixer_input* inputs, size_t n,
 			inputs[idx].consumed += 2;
 		}
 
-		const boost::int16_t short_min = static_cast<boost::int16_t>(std::max(SHRT_MIN, static_cast<int>(shorts_sum)));
-		const boost::int16_t short_max = static_cast<boost::int16_t>(std::min(SHRT_MAX, static_cast<int>(shorts_sum)));
-		const boost::int16_t final_short = (shorts_sum < 0) ? short_min : short_max;
+		const std::int16_t short_min = static_cast<std::int16_t>(std::max(SHRT_MIN, static_cast<int>(shorts_sum)));
+		const std::int16_t short_max = static_cast<std::int16_t>(std::min(SHRT_MAX, static_cast<int>(shorts_sum)));
+		const std::int16_t final_short = (shorts_sum < 0) ? short_min : short_max;
 
 		// Wpisz kolejną liczbę 16-bitową na kolejną pozycję
-		(*output_data_buf)[iteration++] = final_short;
+		output_data_buf[iteration++] = final_short;
 	}
+
+	while (2 * iteration < requested_length)
+		output_data_buf[iteration++] = static_cast<std::int16_t>(0);
 
 	// Usuń ze strukruty numery tych kolejek, 
 	// które nie mogły być przejrzane do końca 
@@ -79,7 +83,7 @@ void mixer::mix(mixer_input* inputs, size_t n,
 	set.clear();
 
 	// Zaktualizuj rozmiar przesłanych danych (w bajtach)
-	*output_size = out_size;
+	*output_size = /*out_size*/ requested_length;
 }
 
 void mixer::init_consumed_bytes(mixer_input* inputs, const int size)

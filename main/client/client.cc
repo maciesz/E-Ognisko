@@ -1,402 +1,647 @@
-#include "client.hpp"
- 
- client::client(boost::asio::io_service& io_service, const std::string& port, 
- 	const std::string& server_name, boost::uint16_t retransmit_limit,
- 	boost::uint16_t keepalive_period) 
- : 
-	tcp_socket_(io_service), 
-	udp_socket_(io_service),
-	tcp_resolver_(io_service), 
-	udp_resolver_(io_service),
-	input_(io_service, ::dup(STDIN_FILENO)), 
-	output_(io_service, ::dup(STDOUT_FILENO)), 
-	header_buffer_(CLIENT_BUFFER_LEN),
-	body_buffer_(CLIENT_BUFFER_LEN),
-	raport_buf_(CLIENT_BUFFER_LEN),
-	//read_buf_(CLIENT_BUFFER_LEN), 
-	//write_buf_(CLIENT_BUFFER_LEN),
-	input_buffer_(CLIENT_BUFFER_LEN),
-	output_buffer_(CLIENT_BUFFER_LEN),
-	port_(port), 
-	server_name_(server_name),
-	keepalive_period_(keepalive_period),
-	retransmit_limit_(retransmit_limit),
-	nr_expected_(static_cast<boost::int32_t>(-1)),
-	actual_dgram_nr_(static_cast<boost::int32_t>(-1)),
-	server_demand_ack_(static_cast<boost::int32_t>(0)),
-	win_(static_cast<boost::int32_t>(-1)),
-	factory_(),
-	last_header_title_(std::string("")),
-	last_datagram_(std::string("")),
-	rerun_timer_(io_service),
-	keepalive_timer_(io_service),
-	header_str_(std::string("")),
-	body_str_(std::string(""))
+#include "client.hh"
+
+client::client(
+		boost::asio::io_service& io_service, 
+		std::string& host, 
+		std::string& port, 
+		std::uint16_t retransmit_limit,
+		std::uint16_t keepalive_period,
+		std::uint16_t reconnect_period,
+		std::uint16_t connection_period) 
+	: 	
+		reconnect_timer_(io_service),
+		port_(port),
+	  	address_(host),
+		//=========================================//
+		// TCP.                                    //
+		//=========================================//
+		tcp_socket_(io_service),
+		tcp_resolver_(io_service),
+		output_(io_service, ::dup(STDOUT_FILENO)),
+	  	raport_buffer_(CLIENT_BUFFER_LEN),
+	  	reconnect_period_(reconnect_period),
+	  	connection_period_(connection_period),
+	  	//=========================================//
+	  	// UDP.                                    //
+	  	//=========================================//
+	  	udp_socket_(
+	  		io_service,
+	  		boost::asio::ip::udp::endpoint(
+	  			boost::asio::ip::udp::v4(),
+	  			0
+	  		) 
+	  	),
+	  	udp_resolver_(io_service),
+	  	input_(io_service, ::dup(STDIN_FILENO)),
+	  	keepalive_period_(keepalive_period),
+	  	retransmit_limit_(retransmit_limit),
+	  	nr_expected_(static_cast<std::uint32_t>(-1)),
+	  	actual_dgram_nr_(static_cast<std::uint32_t>(0)),
+	  	server_demand_ack_(static_cast<std::uint32_t>(0)),
+	  	nr_max_seen_(static_cast<std::uint32_t>(0)),
+	  	win_(static_cast<std::int32_t>(-1)),
+	  	last_header_title_(std::string("")),
+	  	last_datagram_(std::string("")),
+	  	keepalive_timer_(io_service),
+	  	connection_timer_(io_service),
+	  	factory_(),
+	  	input_buffer_(CLIENT_BUFFER_LEN)
 {
-	// Znajdź endpoint do połączenia z serwerem po TCP
-	boost::asio::ip::tcp::resolver::query tcp_query_(server_name, port);
-	boost::asio::ip::tcp::resolver::iterator endpoint_iterator = 
-		tcp_resolver_.resolve(tcp_query_);
-	// Podejmij próbę połączenia z serwerem po TCP
-	boost::asio::async_connect(tcp_socket_, endpoint_iterator,
-		boost::bind(&client::handle_tcp_connect, this,
-			boost::asio::placeholders::error));
+	std::cerr << "Jestem w konstruktorze\n";
+	//=======================================================================//
+	// TCP.                                                                  //
+	//=======================================================================//
+	//std::cerr << "Jestem w konstruktorze\n";
+	do_async_tcp_connect();
 }
 
 client::~client()
 {
-}
-
-void client::handle_tcp_connect(const boost::system::error_code& error)
+	// Zwolnij zasoby.
+	free_resources();
+	// Zamknij deskryptory.
+	input_.close();
+	output_.close();
+}		
+//===========================================================================//
+//                                                                           //
+// TCP.                                                                      //
+//                                                                           //
+//===========================================================================//
+void client::handle_after_connect(const boost::system::error_code& error)
 {
 	if (!error) {
-		// Wczytaj dane do streambuffa
-		boost::asio::async_read_until(tcp_socket_, header_buffer_, '\n',
-			boost::bind(&client::handle_client_id, this,
-				boost::asio::placeholders::error));
+		do_read_header();
+		//std::cerr << "Połączyłem się super\n";
 	} else {
-		std::cerr << "Handle tcp connect\n";
-	}
-}
-
-void client::handle_client_id(const boost::system::error_code& error)
-{
-	if (!error) {
-		// Wczytaj dane z bufora do stringa
-		std::istream is(&header_buffer_);
-		std::string s_header;
-		is >> s_header;
-		try {
-			boost::shared_ptr<client_header> header(
-				dynamic_cast<client_header*>(
-				factory_.match_header(headerline_parser::get_data(s_header))
-			));
-			
-			header->_client_id;
-		} catch (invalid_header_exception& ex) {
-			std::cerr << "Invalid header format: client id from server\n";
-			//close();
-			return;
-		}
-		// Wyczyść bufor:
-		const size_t header_buffer_size = header_buffer_.size();
-		header_buffer_.consume(header_buffer_size);
-
-		boost::asio::async_read(tcp_socket_, raport_buf_,
-			boost::bind(&client::handle_write_tcp_raport, this,
-				boost::asio::placeholders::error));
-
-		create_udp_socket(s_header.size());
-	} else {
-		std::cerr << "Handle client id\n";
-	}
-}
-
-void client::handle_write_tcp_raport(const boost::system::error_code& error)
-{
-	if (!error) {
-		// Wypisz na standardowe wyjście zawartość bufora z raportami:
-		boost::asio::async_write(output_, raport_buf_, 
-			boost::bind(&client::handle_read_tcp_raport, this,
-				boost::asio::placeholders::error));
-	} else {
-		std::cerr << "Handle write TCP raport\n";
-	}
-}
-
-void client::handle_read_tcp_raport(const boost::system::error_code& error)
-{
-	if (!error) {
-		// Zwolnij miejsce w buforze raportów po ostatnim transferze
-		const size_t raport_buf_size = raport_buf_.size();
-		raport_buf_.consume(raport_buf_size);
-		boost::asio::async_read(tcp_socket_, raport_buf_,
-			boost::bind(&client::handle_write_tcp_raport, this,
-				boost::asio::placeholders::error));
-	} else {
-		std::cerr << "Handle read TCP raport\n";
-	}
-}
-
-void client::create_udp_socket(const int bytes_transferred)
-{
-	// Znajdź endpoint do połączenia z serwerem po UDP
-	boost::asio::ip::udp::resolver::query udp_query_(server_name_, port_);
-	boost::asio::ip::udp::resolver::iterator endpoint_iterator = 
-		udp_resolver_.resolve(udp_query_);
-
-	// Podejmij próbę połączenia z serwerem po UDP
-	boost::asio::async_connect(udp_socket_, endpoint_iterator,
-		boost::bind(&client::handle_udp_connect, this,
-			boost::asio::placeholders::error));
-}
-
-void client::handle_udp_connect(const boost::system::error_code& error)
-{
-	if (!error) {
-		std::string client_id_to_str =
-		boost::lexical_cast<std::string>(client_id_);		
-		// Skonstruuj poprawny nagłówek
-		boost::shared_ptr<std::string> header_s(
-			new std::string("CLIENT " + client_id_to_str + "\n")
-		);
-
-		udp_socket_.async_send( 
-			boost::asio::buffer(*header_s), //client_request,
-			boost::bind(&client::handle_client_dgram, this,
-				boost::asio::placeholders::error));
-
+		std::cerr << "Try again: " << error << "\n";
 		// Przystąp do wysyłania keepalive'ów:
-		keepalive_timer_.expires_from_now(
-			boost::posix_time::milliseconds(keepalive_period_)
+		reconnect_timer_.expires_from_now(
+			boost::posix_time::milliseconds(reconnect_period_)
 		);
-		keepalive_timer_.async_wait(
-			boost::bind(&client::send_keepalive_dgram, this)
+		reconnect_timer_.async_wait(
+			[this](boost::system::error_code /*error*/) {
+				// Niezależnie od rezultatu ponów połączenie.
+				do_async_tcp_connect();
+			}
 		);
-
-	} else {
-		std::cerr << "Handle udp connect\n";
 	}
 }
 
-void client::send_keepalive_dgram()
+void client::do_async_tcp_connect()
 {
-	// Skonstruuj poprawny nagłówek
-	boost::shared_ptr<std::string> header_s(
-		new std::string("KEEPALIVE\n")
+	//std::cerr << "A oto adres: " << address_ << "\n";
+	boost::asio::ip::tcp::resolver::query query(address_, port_);
+	boost::asio::ip::tcp::resolver::iterator tcp_endpoint = 
+		tcp_resolver_.resolve(query);
+
+	boost::asio::async_connect(
+		tcp_socket_, 
+		tcp_endpoint, 
+		boost::bind(
+			&client::handle_after_connect,
+			this, 
+			boost::asio::placeholders::error
+		)
+	);
+}
+
+void client::monitor_connection()
+{
+	connection_timer_.expires_from_now(
+		boost::posix_time::milliseconds(1000)
 	);
 
+	connection_timer_.async_wait(
+		[this](boost::system::error_code error) {
+			// Niezależnie od rezultatu ponów połączenie.
+			if (error == boost::asio::error::operation_aborted) {
+				monitor_connection();
+			}
+			else
+				do_tcp_reconnect();
+		}
+	);
+}
+
+void client::do_read_header()
+{
+	//std::cerr << "Czytam nagłówek i co\n";
+	
+	boost::asio::async_read_until(
+		tcp_socket_,
+		raport_buffer_,
+		'\n',
+		[this](boost::system::error_code error, size_t bytes_transferred) {
+			if (!error) {
+				monitor_connection();
+				//std::cerr << "Przeczytałem nagłówek\n";
+				std::string header;
+				std::istream is(&raport_buffer_);
+				std::getline(is, header);
+				//std::cerr << "Header: " << header << "\n";
+				// Usuń dane z bufora
+				raport_buffer_.consume(raport_buffer_.size());
+
+				const int one = 49;
+				const int nine = 57;
+				const int header_begin = static_cast<int>(header[0]);
+				// Jeżeli nagłówek zaczyna się od cyfry nie-0 to znaczy,
+				// że będziemy odczytywać raport.
+				size_t bytes;
+				if (header_begin >= one && header_begin <= nine) {
+					try {
+						bytes = boost::lexical_cast<size_t>(header);
+						do_read_body(bytes);
+					} catch (boost::bad_lexical_cast& ) {
+						std::cerr << "Bad lexical cast client.cc/do_read_header\n";
+						std::cerr << "Castowany: " << header << ", na: " << bytes << "\n";
+					}
+				}
+				// W przeciwnym przypadku otrzymaliśmy od serwera 
+				// komunikat z identyfikatorem .
+				else {
+					// Sprobuj skonwertować do odpowiedniego nagłówka.
+					try {
+						std::shared_ptr<client_header> c_header(
+							dynamic_cast<client_header*>(
+								factory_.match_header(
+									headerline_parser::get_data(header)
+								)
+							)
+	
+						);
+						clientid_ = c_header->_client_id;
+						//std::cerr << "Przed połączeniem po UDP\n";
+						do_async_udp_connect();
+						do_read_header();
+					} catch (invalid_header_exception& ex) {
+						std::cerr << "Invalid header format: " << ex.what() << "\n";
+					}
+				}
+			} else {
+				// Nastąpiło przerwanie połączenia po TCP. Ponów!
+				std::cerr << "Do read header: " << error << "\n";
+				//do_tcp_reconnect();
+				//do_read_body();
+			}
+		}
+	);
+}
+
+void client::do_read_body(const size_t bytes_to_be_transferred)
+{
+	//std::cerr << "Mam wczytać dokładnie: " << bytes_to_be_transferred << " bajtów.\n";
+	boost::asio::async_read(
+		tcp_socket_,
+		raport_buffer_,
+		boost::asio::transfer_at_least(bytes_to_be_transferred),
+		[this](boost::system::error_code error, size_t bytes_transferred) {
+			//std::cerr << "Wczytałem bajtów: " << bytes_transferred << "\n";
+			if (!error) {
+				std::istream is(&raport_buffer_);
+				std::string msg;
+				std::getline(is, msg);
+				//std::cerr << "treść body: " << msg << "\n";
+				do_write_to_STDOUT();
+			} else {
+				// Najprawdopodobniej nastąpiło przerwanie połączenia po TCP.
+				// Wznawiamy.
+				//std::cerr << "Do read body: " << error << "\n";
+				//do_tcp_reconnect(); Zegarek się o to zatroszczy.
+			}
+		}
+	);
+}
+
+void client::do_write_to_STDOUT()
+{
+	std::string header;
+	std::istream is(&raport_buffer_);
+	std::getline(is, header);
+	boost::asio::async_write(
+		output_,
+		raport_buffer_,
+		[this](boost::system::error_code error, size_t bytes_transferred) {
+			if (!error) {
+				raport_buffer_.consume(raport_buffer_.size());
+				do_read_header();
+			} else {
+				// Nastąpił błąd w czasie wypisywania na strumień STDOUT.
+				std::cerr << "Do write to STDOUT: " << error << "\n";
+			}
+		}
+	);
+}
+
+void client::do_tcp_reconnect()
+{
+	// Ustaw długość kolejki na niezainicjalizowaną.
+	win_ = -1;
+	// Zwlonij zasoby.
+	udp_socket_.close();
+	reconnect_timer_.expires_from_now(
+		boost::posix_time::milliseconds(reconnect_period_)
+	);
+	reconnect_timer_.async_wait(
+		[this](boost::system::error_code /*error*/) {
+			// Niezależnie od rezultatu ponów połączenie.
+			do_async_tcp_connect();
+		}
+	);
+}
+
+void client::free_resources()
+{
+	// Zwolnij miejsce w buforach.
+	input_buffer_.consume(input_buffer_.size());
+	// Cofnij wszystkie operacje związane z deskryptorami.
+	input_.cancel();
+	output_.cancel();
+}
+
+
+//===========================================================================//
+//                                                                           //
+// UDP.                                                                      //
+//                                                                           //
+//===========================================================================//
+void client::do_async_udp_connect()
+{
+	// Znajdź endpoint do połączenia z serwerem po UDP.
+	boost::asio::ip::udp::resolver::query udp_query(address_, port_);
+	boost::asio::ip::udp::resolver::iterator endpoint_iterator =
+		udp_resolver_.resolve(udp_query);
+	/*boost::asio::ip::udp::endpoint remote_endpoint(
+		boost::asio::ip::address::from_string(address_), 
+		port_s
+	);*/
+	// Podejmij próbę połączenia z serwerem.
+	udp_socket_.async_connect(
+		*endpoint_iterator,
+		[this](boost::system::error_code error) {
+
+			if (!error) {
+				do_send_clientid_datagram();
+			} else {
+				// Jeżeli nie udało się połączyć po UDP, 
+				// to się nie poddajemy, tylko próbujemy usilnie się połączyć.
+				std::cerr << "Do async udp connect: " << error << "\n";
+				//do_async_udp_connect(); // po UDP łączymy się od razu.
+			}
+		}
+	);
+}
+
+void client::do_send_clientid_datagram()
+{
+	//std::cerr << "Będę wysyłał id klienta do serwera.\n";
+	std::string clientid_to_str = std::to_string(clientid_);
+	// Skonstruuj poprawny nagłówek
+	std::shared_ptr<std::string> header_s(
+		new std::string("CLIENT " + clientid_to_str + "\n")
+	);
+	// Wyślij datagram z identyfikatorem do serwera.
 	udp_socket_.async_send(
 		boost::asio::buffer(*header_s),
-		boost::bind(&client::wait_for_next_keepalive, this,
-			boost::asio::placeholders::error));
-}
+		[this, header_s] (boost::system::error_code error, size_t bytes_transferred) {
 
-void client::wait_for_next_keepalive(const boost::system::error_code& error)
-{
-	if (!error) {
-		keepalive_timer_.expires_from_now(
-				boost::posix_time::milliseconds(keepalive_period_)
-		);
-		keepalive_timer_.async_wait(
-			boost::bind(&client::send_keepalive_dgram, this)
-		);
-	} else {
-		std::cerr << "Wait for next keepalive\n";
-	}
-}
-
-void client::handle_client_dgram(const boost::system::error_code& error)
-{
-	if (!error) {
-		// Odbierz komunikat po wysłaniu inicjującego komunikatu:
-		//
-		// CLIENT [clientid] po UDP
-		udp_socket_.async_receive(
-			boost::asio::buffer(read_buf_), //'\n', // TODO: Możliwe, że nie jest to odpowiednik async_read_until
-			boost::bind(&client::handle_read_datagram_header, this,
-				boost::asio::placeholders::error,
-				boost::asio::placeholders::bytes_transferred));
-	} else {
-		std::cerr << "Handle client dgram\n";
-	}
-}
-
-void client::handle_read_datagram_header(const boost::system::error_code& error, // TODO: kandydat na rename'a
-	const size_t bytes_transferred)
-{
-	if (!error) {
-		// Po odebraniu danych od serwera mamy jeden komunikat,
-		// niepodzielony na nagłówek i ciało wiadomości:
-		std::string whole_message;
-		std::copy(read_buf_.begin(), read_buf_.begin() + bytes_transferred, 
-			std::back_inserter(whole_message));
-		
-		const message_structure msg_structure = 
-			message_converter::divide_msg_into_sections(
-				whole_message, bytes_transferred
-			);
-			
-		try {
-			base_header* header = 
-				factory_.match_header(headerline_parser::get_data(
-						msg_structure._header
-					)
-				);
-			manage_read_header(header);
-		} catch (invalid_header_exception& ex) {
-			std::cerr << "Handle read datagram\n";
-		}
-	} else {
-		std::cerr << "Handle read datagram\n";
-	}
-}
-
-void client::handle_write_to_stdout()
-{
-	// Prześlij wiadomość z body_buffer na STDOUT
-	boost::asio::async_write(output_, 
-		boost::asio::buffer(body_str_), // TODO!: Czytasz z bufora po staremu aj ty ty!
-		boost::bind(&client::handle_read_from_stdin, this,
-			boost::asio::placeholders::error));
-}
-
-void client::manage_read_header(base_header* header)
-{
-	if (header->_header_name == DATA) {
-			boost::shared_ptr<data_header> d_header(
-				dynamic_cast<data_header*>(header)
-			);
-
-			// Jeżeli jest to pierwsza wiadomość od serwera
-			if (win_ == -1) {
-				// Ustaw parametry
-				win_ = d_header->_win;
-				nr_expected_= d_header->_nr + 1;
-				server_demand_ack_ = d_header->_ack;
-				last_header_title_ = d_header->_header_name;
-
-				// Wypisz body wiadomości na STDOUT
-				handle_write_to_stdout();
-			}
-			// Jeżeli otrzymaliśmy dwukrotnie datagram DATA,
-			// bez potwierdzenia ostatnio wysłanego datagramu,
-			// to ponawiamy wysyłanie ostatniego datagramu 
-			if (last_header_title_ == DATA) {
-				// Wyślij ostatni datagram raz jeszcze
-				resend_last_datagram();
-			}
-			// Jeżeli klient otrzyma datagram z numerem większym
-			// niż kolejny oczekiwany:
-			else if (d_header->_nr > nr_expected_) {
-				if (nr_expected_ >= d_header->_nr - retransmit_limit_) {
-					// Porzuca ten datagram i wysyła w odpowiedzi 
-					nr_expected_ = d_header->_nr + 1;
-					// datagram RETRANSMIT nr_expected_
-				}
-				// W przeciwnym wypadku przyjmuje datagram oraz uznaje,
-				// że poprzednich już nie przeczyta
-				else {
-					nr_expected_ = d_header->_nr;
-					win_ = d_header->_win;
-					// Zarezerwuj miejsce na win bytów z STDIN:
-					boost::asio::streambuf::mutable_buffers_type bufs =
-						input_buffer_.prepare(win_);
-					// Wczytaj nie więcej niż _win bajtów danych z STDIN
-					boost::asio::async_read(input_, bufs,
-						boost::bind(&client::handle_read_from_stdin, this,
-							boost::asio::placeholders::error));
-				}
-			} else if (d_header->_nr < nr_expected_) {
-				// Zwyczajnie porzuć ten datagram i tyle.
-			} 
-			// Jeżeli jest to któryś z rzędu komunikat od serwera typu DATA
-			// oraz przekazany nr_datagramu jest zgodny z numerem oczekiwanego
-			else {
-				// Zaktualizuj:
-				// -> liczbę dostępnych bajtów w kolejce:
-				win_ = d_header->_win;
-				// -> numer kolejnego datagramu
-				nr_expected_++;
-				// Zaktualizuj n
-				server_demand_ack_ = d_header->_ack;
-				last_header_title_ = d_header->_header_name;
-
-				handle_write_to_stdout();
-			}
-	}	else if (header->_header_name == ACK) {
-			boost::shared_ptr<ack_header> a_header(
-				dynamic_cast<ack_header*>(header)
-			);
-			// Jeżeli jest to pierwsza informacja zwrotna 
-			// od serwera po UDP w nowym połączeniu
-			if (win_ == -1) {
-				// Ponów wysłanie client_id
-				std::string client_id_to_str =
-				boost::lexical_cast<std::string>(client_id_);		
-				// Skonstruuj poprawny nagłówek
-				boost::shared_ptr<std::string> header_s(
-					new std::string("CLIENT " + client_id_to_str + "\n")
-				);
-				udp_socket_.async_send(
-					boost::asio::buffer(*header_s),
-					boost::bind(&client::handle_client_dgram, this,
-						boost::asio::placeholders::error));
+			if (!error) {
+				//std::cerr << "Wysłałem\n";
+				do_handle_udp_request();
 			} else {
-				// Zaktualizuj:
-				//
-				// -> tytuł ostatniego nagłówka
-				last_header_title_ = ACK;
-				// -> ilość dostępnych bajtów w kolejce:
-				win_ = a_header->_win;
-				// Wczytaj nie więcej niż _win bajtów danych z STDIN
-				boost::asio::streambuf::mutable_buffers_type bufs =
-						input_buffer_.prepare(win_);
-				boost::asio::async_read(input_, bufs,
-					boost::bind(&client::handle_read_from_stdin, this,
-						boost::asio::placeholders::error));
-			} 
-	}
+				// Jeśli nie wypaliło to:
+				// -> zwróć stosowną informację o błędzie,
+				// -> spróbuj wysłać komunikat ponownie
+				std::cerr << "Do send clientid datagram: " << error << "\n";
+				do_send_clientid_datagram();
+			}
+		}
+	);
+	// Ponieważ jesteśmy podłączeni, to zacznij wysyłać KEEPALIVE'y.
+	//do_send_keepalive_dgram();
 }
 
-void client::handle_read_from_stdin(const boost::system::error_code& error)
+void client::do_send_keepalive_dgram()
 {
-	if (!error) {
-		// Wczytaj dane z bufora do stringa
-		std::istream is(&input_buffer_);
-		std::string s_dgram;
-		is >> s_dgram;
-		// Zuploaduj dane otrzymane z STDIN, ale zanim to zrobisz:
-		// -> zaktualizuj aktualny numer datagramu do wysłania:
-		actual_dgram_nr_++;
-		// -> zaktualizuj datagram jako ostatnio nadany:
-		last_datagram_ = 
-			"UPLOAD " + 
-			boost::lexical_cast<std::string>(nr_expected_) +
-			" " +
-			boost::lexical_cast<std::string>(actual_dgram_nr_) +
-			" " +
-			boost::lexical_cast<std::string>(win_) +
-			"\n" +
-			s_dgram;
+	// Skonstruuj poprawny datagram.
+	std::shared_ptr<std::string> header_s(
+		new std::string("KEEPALIVE\n")
+	);
+	// Wyślij powyższy datagram serwerowi.
+	udp_socket_.async_send(
+		boost::asio::buffer(*header_s),
+		//remote_endpoint_,
+		[this, header_s](boost::system::error_code error, size_t bytes_transferred) {
 
-		boost::shared_ptr<std::string> message(
-			new std::string(last_datagram_)
+			if (!error) {
+				// Świetnie! Komunikat został poprawnie wysłany.
+				// Z tej okazji cieszymy się i nic nie robimy
+				// ... przez najbliższe 100ms(kupa czasu).
+			} else {
+				// Jeżeli wystąpił błąd, to znaczy, 
+				// że najprawdopodobniej połączenie po TCP się urwało
+				// i w serwerze przestaliśmy słuchać tego klienta.
+				// Podejmujemy więc próbę ponownego połączenia po TCP.
+				std::cerr << "Send keepalive msg[Do send!]: " << error << "\n";
+				//do_tcp_reconnect();
+			}
+		}
+	);
+	// Jeżęli komunikat został poprawnie wysłany,
+	// to odmierz zegarkiem czas i ponownie wywołaj funkcję gdy nadejdzie czas.
+	keepalive_timer_.expires_from_now(
+		boost::posix_time::milliseconds(keepalive_period_)
+	);
+	keepalive_timer_.async_wait(
+		[this](boost::system::error_code error) {
+
+			if (!error) {
+				do_send_keepalive_dgram();
+			} else {
+				// Jeśli nie udało się wysłać keepalive'a to znaczy,
+				// że połączenie zostało przerwane i należy ponownie
+				// połączyć się z serwerem po TCP.
+				std::cerr << "Do send keepalive: " << error << "\n";
+				//do_tcp_reconnect();
+				monitor_connection();
+			}
+		}
+	);
+}
+
+void client::do_handle_udp_request()
+{
+	// Odbieramy komunikat po wysłaniu inicjującego komunikatu postaci:
+	// 
+	// CLIENT [clientid]\n po UDP.
+	udp_socket_.async_receive(
+		boost::asio::buffer(read_buf_),
+		[this](boost::system::error_code error, size_t bytes_transferred) {
+
+			if (!error) {
+				// Po odebraniu danych od serwera mamy jeden spójny datagram.
+				// Jest on niepodzielony na nagłówek i ciało wiadomości.
+				std::string msg;
+				std::copy(
+					read_buf_.begin(), 
+					read_buf_.begin() + bytes_transferred,
+					std::back_inserter(msg)
+				);
+				// Podziel wiadomość na nagłówek i część ,,body''.
+				message_structure msg_structure = 
+					message_converter::divide_msg_into_sections(
+						msg, bytes_transferred
+					);
+				
+				try {
+					base_header* header = 
+						factory_.match_header(
+							headerline_parser::get_data(msg_structure._header)
+						);
+
+					do_manage_msg(header, msg_structure._body);
+				} catch (invalid_header_exception& e) {
+					std::cerr << "Do handle udp request: " << e.what() << "\n";
+				}
+			} else {
+				// Jeżeli nie udało się odebrać danych z gniazda, 
+				// to wróć do nasłuchiwania po UDP.
+				std::cerr << "Do handle udp request\n";
+				do_handle_udp_request();
+			}
+		}
+	);
+}
+
+void client::do_write_mixed_data_to_stdout(std::string& data)
+{
+	// Prześlij ,,body'' wiadomoścu na STDOUT.
+	boost::asio::async_write(
+		output_,
+		boost::asio::buffer(data),
+		[this, &data](boost::system::error_code error, size_t bytes_transferred) {
+			
+			// Niezależnie od powodzenia operacji rozpocznij:
+			// -> czytanie z STDIN,
+			// -> obsługę datagramów po UDP.
+			do_read_from_stdin();
+			do_handle_udp_request();
+		}
+	);
+}
+
+void client::do_manage_msg(base_header* header, std::string& body)
+{
+	//std::cerr << "Zarządzanie wiadomością\n";
+	const std::string header_name = header->_header_name;
+	if (header_name == DATA) {
+	//	std::cerr << "Otrzymałem komunikat DATA.\n";
+		std::shared_ptr<data_header> d_header(
+			dynamic_cast<data_header*>(header)
 		);
-
-		// Zapisz do udp_socket'a
-		udp_socket_.async_send(
-			boost::asio::buffer(*message),
-			boost::bind(&client::handle_after_read_from_stdin, this,
-				boost::asio::placeholders::error));
-	} else {
-		std::cerr << "Handle read from STDIN\n";
+		nr_max_seen_ = std::max(nr_max_seen_, d_header->_nr);
+		// Jeżeli otrzymaliśmy dwukrotnie datagram DATA
+		// bez powtórzenia ostatnio wysłanego datagramu,
+		// to ponawiamy wysyłanie ostatniego datagramu.
+		if (last_header_title_ == DATA) {
+	//		std::cerr << "Nie otrzymałem potwierdzenia poprzedniego UPLOADA\n";
+			// Wyślij ostatni datagram UPLOAD raz jeszcze.
+			if (!last_datagram_.empty()) {
+				do_resend_last_datagram();				
+			}
+		}
+		// Jeżeli jest to pierwsza wiadomość od początku znajomości po UDP.
+		if (win_ == -1) {
+	//		std::cerr << "Jest to pierwsza wiadomość od serwera\n";
+			// Ustaw parametry klienta.
+			win_ = d_header->_nr + 1;
+			nr_expected_ = d_header->_nr + 1;
+			server_demand_ack_ = d_header->_ack;
+			/*last_header_title_ = d_header->_header_name;
+			last_datagram_ = "CLIENT " + std::to_string(clientid_) + ""*/
+			// Wypisz ,,body'' wiadomości na STDOUT.s
+			do_write_mixed_data_to_stdout(body);
+		}
+		// Jeżeli klient otrzymał datagram z numerem większym
+		// niż kolejny oczekiwany:
+		else if (d_header->_nr > nr_expected_) {
+	//		std::cerr << "Otrzymałem datagram z numerem większym niż kolejny oczekiwany.\n";
+			if (nr_expected_ >= d_header->_nr - retransmit_limit_) {
+				// Porzuć ten datagram i zaktualizuj wartość nr_expected_.
+				do_retransmit(nr_expected_); //póki co blocked TODO: Uruchomić to i przetestować.
+				nr_expected_ = d_header->_nr + 1;
+			}
+			// W przeciwnym przypadku przyjmij datagram oraz uznaj,
+			// że poprzednich nie uda się już przeczytać.
+			else {
+				nr_expected_ = d_header->_nr + 1;
+				win_ = d_header->_win;
+				// Odczytaj maksymalnie win_ bajtów danych z STDIN
+				do_write_mixed_data_to_stdout(body);
+				//do_read_from_stdin();
+				//do_handle_udp_request();
+			}
+		} else if (d_header->_nr < nr_expected_) {
+	//		std::cerr << "Porzucam datagram\n";
+			// Zwyczajnie porzuć ten datagram i czekaj na nowy.
+			do_handle_udp_request();
+		}
+		// Jeżeli jest to któryś z rzędu komunikat od serwera typu DATA
+		// oraz przekazany nr_datagramu jest zgodny z numerem oczekiwanym.
+		else {
+			// Zaktualizuj:
+			// -> liczbę dostępnych bajtów w kolejce:
+			win_ = d_header->_win;
+			// -> numer kolejnego datagramu:
+			nr_expected_++;
+			// -> pozostałe:
+			server_demand_ack_ = d_header->_ack;
+			last_header_title_ = d_header->_header_name;
+			//last_datagram_ = last_header_title_ + body;
+			// Wypisz rezultat na STDOUT.
+			if (!last_datagram_.empty()) {
+				do_write_mixed_data_to_stdout(body);
+			} else {
+				do_handle_udp_request();
+			}
+		}
+	} else if (header_name == ACK) {
+		//std::cerr << "Otrzymałem potwierdzenie.\n";
+		std::shared_ptr<ack_header> a_header(
+			dynamic_cast<ack_header*>(header)
+		);
+		// Jeżeli jest to pierwsza informacja zwrotna
+		// od serwera po UDP w nowym połączeniu.
+		if (win_ == -1) {
+			do_send_clientid_datagram();
+		} else {
+			// Zaktualizuj:
+			// -> tytuł ostatniego nagłówka:
+			last_header_title_ = ACK;
+			// -> ilość dostępnych bajtów w kolejce:
+			win_ = a_header->_win;
+			// Wczytaj nie więcej niż _win bajtów danych z STDIN
+			do_read_from_stdin();
+		}
 	}
 }
 
-void client::handle_after_read_from_stdin(const boost::system::error_code& error)
+void client::do_retransmit(const std::uint32_t nr)
 {
-	if (!error) {
-		// Czekaj na komunikat zwrotny od serwera
-		// (ACK albo [nie daj Boże] na DATA bez uprzedniego ACK)
-		udp_socket_.async_receive(
-			boost::asio::buffer(read_buf_), //'\n', // TODO: Możliwe, że źle czytane
-			boost::bind(&client::handle_read_datagram_header, this,
-				boost::asio::placeholders::error,
-				boost::asio::placeholders::bytes_transferred));
+	std::string message(
+		"RETRANSMIT " +
+		std::to_string(std::max(nr_max_seen_, nr)) + 
+		"\n"
+	);
+
+	udp_socket_.async_send(
+		boost::asio::buffer(message),
+		[this] (boost::system::error_code error, size_t bytes_transferred) {
+
+			if (!error) {
+				do_handle_udp_request();
+			} else {
+				std::cerr << "Error przy retransmicie: " << error << "\n";
+				// Trudno.
+			}
+		}
+	);
+}
+
+void client::do_read_from_stdin()
+{
+	if (win_ > 0) {
+	//	std::cerr << "Jestem w czytelni z wejścia\n";
+		// Zarezerwuj miejsce na win_ bajtów z STDIN.
+		//boost::asio::streambuf::mutable_buffers_type bufs = 
+		//	input_buffer_.prepare(win_);
+		// Wczytaj nie więcej niż win_ bajtów danych z STDIN.
+		boost::asio::async_read(
+			input_,
+			input_buffer_,
+			boost::asio::transfer_at_least(1),
+			[this](boost::system::error_code error, size_t bytes_transferred) {
+
+				if (!error) {
+	//				std::cerr << "Wczytałem coś\n";
+
+					// Wczytaj dane z bufora do stringa.
+					std::istream is(&input_buffer_);
+					std::string s_dgram;
+					is >> s_dgram;
+
+	//				std::cerr << "Wczytałem: " << s_dgram << "\n";
+					// Zuploaduj dane otrzymane z STDIN, ale zanim to zrobisz:
+					// -> zaktualizuj datagram jako ostatnio nadany:
+					std::string header(
+						"UPLOAD " + 
+						std::to_string(actual_dgram_nr_) +
+						"\n"
+					);
+					// -> zaktualizuj aktualny numer datagramu do wysłania:
+					actual_dgram_nr_++;
+					last_datagram_ = header + s_dgram;
+
+					input_buffer_.consume(input_buffer_.size());
+					std::shared_ptr<std::string> message(
+						new std::string(header + s_dgram)
+					);
+					// Zapisz do udp socket'a.
+					do_write_msg_to_udp_socket(message);
+				} else {
+					std::cerr << "Do read from STDIN: " << error << "\n";
+				}
+			}
+		);
 	} else {
-		std::cerr << "Handle upload datagram\n";
+		do_handle_udp_request();
 	}
 }
 
-void client::resend_last_datagram()
+void client::do_write_msg_to_udp_socket(std::shared_ptr<std::string> message)
 {
-	boost::shared_ptr<std::string> resend_message (
+	//std::cerr << "Taka SYTUACJA: " << *message << "\n";
+	udp_socket_.async_send(
+		boost::asio::buffer(*message),
+		[this, message](
+			boost::system::error_code error, 
+			size_t bytes_transferred
+		) {
+			if (error) {
+				// Jeżeli zapisanie do socketa się nie powiodło,
+				// to spróbuj raz jeszcze.
+				std::cerr << "Do write msg to udp socket: " << error << "\n";
+				//do_write_msg_to_udp_socket(message);
+			}
+			// Niezależnie od tego nasłuchuj.
+			do_handle_udp_request();
+		}
+	);
+}
+
+void client::do_resend_last_datagram()
+{
+	/*std::cerr << "-------------------------------------------\n";
+	std::cerr << "Ponawiam wysłanie ostatniego datagramu\n";
+	std::cerr << "                                           \n";
+	std::cerr << last_datagram_ << "\n";
+	std::cerr << "-------------------------------------------\n";*/
+	std::shared_ptr<std::string> resend_message(
 		new std::string(last_datagram_)
 	);
-	// Wyślij ponownie:
+	// Wyślij ponownie
 	udp_socket_.async_send(
 		boost::asio::buffer(*resend_message),
-		boost::bind(&client::handle_after_read_from_stdin, this,
-			boost::asio::placeholders::error));
+		[this](
+			boost::system::error_code error, 
+			size_t bytes_transferred
+		) {
+			// Niezależnie od pomyślności ponownego przesłania wiadomości:
+			// -> czytaj ze standardowego wejścia.
+			do_read_from_stdin();
+			// -> Jednocześnie czekawszy na wiadomość od serwera.
+			do_handle_udp_request();
+		}
+	);
 }

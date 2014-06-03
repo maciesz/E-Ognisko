@@ -1,5 +1,5 @@
-#ifndef HEADER_TITLES_HPP
-#define HEADER_TITLES_HPP
+#ifndef HEADER_TITLES_HH
+#define HEADER_TITLES_HH
 
 const std::string CLIENT = std::string("CLIENT");
 const std::string DATA = std::string("DATA");

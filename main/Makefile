@@ -9,7 +9,7 @@ OBJECTS=$(SOURCES:%.cc=%.o)
 #$(SOURCES:%.cc=%.o))
 #HEADERS=$(SOURCES:%.cc=%.hpp)
 
-TARGET=main client_prog
+TARGET=client_prog
 
 .PHONY: all clean
 

@@ -1,19 +1,24 @@
-#include "server_parser.hpp"
+#include "server_parser.hh"
 
-response server_parser::parse(boost::uint16_t& port, boost::uint16_t& fifo_size,
-		boost::uint16_t& flw, boost::uint16_t& fhw, boost::uint16_t& buf_len,
-		boost::uint16_t& tx_interval, const program_parametres& prms)
+response server_parser::parse(
+		std::uint16_t& port, 
+		std::uint16_t& fifo_size,
+		std::uint16_t& flw, 
+		std::uint16_t& fhw, 
+		std::uint16_t& buf_len,
+		std::uint16_t& tx_interval, 
+		const program_parametres& prms)
 {
 	namespace po = boost::program_options;
 	try {
 		po::options_description desc("Options");
 		desc.add_options()
-			(",p", po::value<boost::uint16_t>(&port), "PORT")
-			(",F", po::value<boost::uint16_t>(&fifo_size), "FIFO_SIZE")
-			(",L", po::value<boost::uint16_t>(&flw), "FIFO_LOW_WATERMARK")
-			(",H", po::value<boost::uint16_t>(&fhw), "FIFO_HIGH_WATERMARK")
-			(",X", po::value<boost::uint16_t>(&buf_len), "BUF_LEN")
-			(",i", po::value<boost::uint16_t>(&tx_interval), "TX_INTERVAL")
+			(",p", po::value<std::uint16_t>(&port), "PORT")
+			(",F", po::value<std::uint16_t>(&fifo_size), "FIFO_SIZE")
+			(",L", po::value<std::uint16_t>(&flw), "FIFO_LOW_WATERMARK")
+			(",H", po::value<std::uint16_t>(&fhw), "FIFO_HIGH_WATERMARK")
+			(",X", po::value<std::uint16_t>(&buf_len), "BUF_LEN")
+			(",i", po::value<std::uint16_t>(&tx_interval), "TX_INTERVAL")
 		;
 
 		po::variables_map vm;

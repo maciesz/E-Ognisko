@@ -1,9 +1,12 @@
-#ifndef MIXER_HPP
-#define MIXER_HPP
+#ifndef MIXER_HH
+#define MIXER_HH
 
-#include <boost/cstdint.hpp>
+#include <cstdint>
+#include <climits>
+#include <algorithm>
+#include <set>
 
-#include "../common/structures.hpp"
+#include "../common/structures.hh"
 
 class mixer
 {
