@@ -15,12 +15,12 @@
 //===========================================================================//
 struct mixer_input
 {
-	// Wskaźnik na dane w FIFO
+	/// Wskaźnik na dane w FIFO
 	void* data;
-	// Liczba dostępnych bajtów
+	/// Liczba dostępnych bajtów
 	size_t len;
-	// Wartość ustawiana przez mikser,
-	// wskazująca ile bajtów należy usunąć z FIFO
+	/// Wartość ustawiana przez mikser,
+	/// wskazująca ile bajtów należy usunąć z FIFO
 	size_t consumed;
 };
 
@@ -87,7 +87,7 @@ struct base_header
 	std::string _header_name;
 };
 
-// Nagłówek typu: CLIENT [clientid]
+/// Nagłówek typu: CLIENT [clientid]
 struct client_header: public base_header
 {
 	client_header()
@@ -112,7 +112,7 @@ struct client_header: public base_header
 	size_t _client_id;
 };
 
-// Nagłówek typu: UPLOAD [nr]
+/// Nagłówek typu: UPLOAD [nr]
 struct upload_header: public base_header
 {
 	upload_header()
@@ -137,7 +137,7 @@ struct upload_header: public base_header
 	size_t _nr;
 };
 
-// Nagłówek typu: DATA [nr] [ack] [win]
+/// Nagłówek typu: DATA [nr] [ack] [win]
 struct data_header: public base_header
 {
 	data_header()
@@ -166,7 +166,7 @@ struct data_header: public base_header
 	size_t _win;
 };
 
-// Nagłówek typu: ACK [ack] [win]
+/// Nagłówek typu: ACK [ack] [win]
 struct ack_header: public base_header
 {
 	ack_header()
@@ -193,7 +193,7 @@ struct ack_header: public base_header
 	size_t _win;
 };
 
-// Nagłówek typu: RETRANSMIT [nr]
+/// Nagłówek typu: RETRANSMIT [nr]
 struct retransmit_header: public base_header
 {
 	retransmit_header()
@@ -218,7 +218,7 @@ struct retransmit_header: public base_header
 	size_t _nr;
 };
 
-// Nagłówek typu: KEEPALIVE
+/// Nagłówek typu: KEEPALIVE
 struct keepalive_header: public base_header
 {
 	keepalive_header()

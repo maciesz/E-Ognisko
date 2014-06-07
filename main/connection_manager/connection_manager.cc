@@ -13,7 +13,6 @@ void connection_manager::start(connection_ptr connect, server* server)
 {
 	// Inicjalizacja serwera.
 	server_ = server;
-	//std::cerr << "Jestem w managerze połączeń i będę akceptował" << "\n";
 	connections_map_.insert(std::make_pair(connect->get_clientid(), connect));
 	connect->start();
 }

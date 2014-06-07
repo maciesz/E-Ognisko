@@ -20,7 +20,6 @@ client_data::client_data(
 	max_bytes_(0),
 	expected_client_datagram_nr_(0)
 {
-	//squeue_.reserve(max_queue_length_);
 }
 
 client_data::~client_data()
@@ -36,18 +35,18 @@ void client_data::actualize_content_after_mixery(
 	std::cerr << "================================================================\n";
 	std::cerr << "Akutalizacja po miksowaniu.\n";
 	std::cerr << "Przetworzyłem: " << bytes_transferred << " bajtów.\n";
-	std::cerr << "Wolne bajty przed updatem: " << max_queue_length_ - queue_size_ << ".\n";*/
-	// Usuń shift pierwszych elementów z kolejki:
-	/*std::cerr << "Wolne miejsce w kolejce: ";
+	std::cerr << "Wolne bajty przed updatem: " << max_queue_length_ - queue_size_ << ".\n";
+	std::cerr << "Wolne miejsce w kolejce: ";
 	std::cerr << "-> przed mixowaniem: " << max_queue_length_ - queue_size_ << "\n";*/
+	// Usuń shift pierwszych elementów z kolejki:
 	size_t shift = bytes_transferred / 2;
 	pop_front_sequence(shift);
 	// Zaktualizuj rozmiar kolejki:
 	queue_size_ = queue_.size();
 	/*std::cerr << "Wolne bajty po updacie: " << max_queue_length_ - queue_size_ << ".\n";
 	std::cerr << "================================================================\n";
-	std::cerr << "================================================================\n";*/
-	/*std::cerr << "-> po mixowaniu: " << max_queue_length_ - queue_size_ << "\n";
+	std::cerr << "================================================================\n";
+	std::cerr << "-> po mixowaniu: " << max_queue_length_ - queue_size_ << "\n";
 	std::cerr << "-----------------------------------------------\n";*/
 	// Zaktualizuj minimalną ilość bytów w kolejce:
 	min_bytes_ = std::min(min_bytes_, queue_size_ * 2);
@@ -76,7 +75,6 @@ void client_data::actualize_content_after_upload(
 	queue_size_ = queue_.size();
 	/*std::cerr << "Wolne bajty po uploadzie: " << max_queue_length_ - queue_size_ << ".\n";
 	std::cerr << "----------------------------------------------------------------\n";*/
-	//std::cerr << "Już ogarnąłem wektor\n";
 	// Zaktualizuj maksymalną liczbę bajtów w kolejce:
 	max_bytes_ = std::max(max_bytes_, queue_size_ * 2);
 	// Zaktualizuj nr kolejnego oczekiwanego datagramu ze strony klienta.
@@ -99,16 +97,17 @@ std::string client_data::get_statistics()
 		boost::lexical_cast<std::string>(max_bytes_) +
 		")\n"
 	));
-
 	// Automatycznie zresetuj statystyki:s
 	reset_statistics();
-
 	// Przekaż raport dalej
 	return statistics;
 }
 
 queue_state client_data::rate_queue_state()
 {
+	// Pamiętaj:
+	// Kolejka przechowuje liczby 16-bitowe ze znakiem,
+	// a więc ilość bajtów w kolejce jest mnożona * 2!
 	if (queue_size_ * 2 >= fifo_high_watermark_ - 1)
 		return queue_state::ACTIVE;
 	else if (queue_size_ * 2 <= fifo_low_watermark_)

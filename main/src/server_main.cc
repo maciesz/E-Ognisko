@@ -11,7 +11,6 @@
 
 int main(int argc, char** argv)
 {
-	//std::ios_base::sync_with_stdio(false);
 	program_parametres ps(argc, argv);
 
 	size_t port;
@@ -50,8 +49,6 @@ int main(int argc, char** argv)
 				buf_len,
 				tx_interval
 			);
-
-	//		io_service.run();
 			serv.run();
 		} catch (std::exception& ex) {
 			std::cerr << "Exception: " << ex.what() << "\n";

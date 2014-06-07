@@ -2,18 +2,16 @@
 
 header_data headerline_parser::get_data(const std::string& headerline_s)
 {
-	// Skonwertuj na stringa
-	//std::string headerline_s(headerline);
-	// Deklaracja wektora tymczasowo przechowującego dane
+	// Deklaracja wektora tymczasowo przechowującego dane.
 	std::vector<std::string> args;
-	// Wypełnienie wektora poszczególnymi komponentami z nagłówka
+	// Wypełnienie wektora poszczególnymi komponentami z nagłówka.
 	boost::split(args, headerline_s, boost::algorithm::is_any_of(" \t\n"));
-	// Jeżeli nagłówek jest pusty, to jest nieprawidłowy
+	// Jeżeli nagłówek jest pusty, to jest nieprawidłowy.
 	if (!args.size())
 		throw invalid_header_exception();
-	// Deklaracja listy wynikowej
+	// Deklaracja listy wynikowej.
 	std::vector<size_t> param_list;
-	// Konwersja wszystkich dodatkowych parametrów na liczbowe
+	// Konwersja wszystkich dodatkowych parametrów na liczbowe.
 	const int size = static_cast<int>(args.size());
 	for (int i = 1; i< size; ++i) {
 		try {
@@ -32,10 +30,10 @@ header_data headerline_parser::get_data(const std::string& headerline_s)
 			std::cerr << "----------------------------------------------\n";*/
 		}
 	}
-	// Wyznaczenie nazwy głównej nagłówka
+	// Wyznaczenie nazwy głównej nagłówka.
 	const std::string header_name = args[0];
-	// Zamiatamy po sobie
+	// Zamiatamy po sobie.
 	args.clear();
-	// Zwracamy obiekt z informacjami
+	// Zwracamy obiekt z informacjami.
 	return header_data(header_name, param_list);
 }

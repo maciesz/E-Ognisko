@@ -74,7 +74,6 @@ server::server(
 	do_receive();
 	// Miksowanie czas zacząć!
 	do_mixery();
-	//std::cerr << "Dotąd ok\n";
 }
 
 server::~server()
@@ -97,7 +96,6 @@ void server::do_receive()
 		boost::asio::buffer(read_buf_, CLIENT_BUFFER_LEN),
 		sender_endpoint_,
 		[this](boost::system::error_code error, size_t bytes_transferred) {
-			//std::cerr<<"-------------------------------------------------\n";
 			if (!error) {
 				// Podziel datagram na nagłówek i ,,body'' wiadomości.
 				std::string whole_message;
@@ -118,23 +116,19 @@ void server::do_receive()
 				std::cerr << "header: " << msg_structure._header << "\n";
 				std::cerr << "------------------------------------------------\n";*/
 				try {
-					//std::cerr << "Do receive przed: " << "\n";
 					base_header* header = 
 						factory_.match_header(
 							headerline_parser::get_data(
 								msg_structure._header
 							)
 						);
-					//std::cerr << "Po receivie------------------\n";
 					// Po udanej konwersji obsłuż akcję związaną z tym dgramem.
 					do_manage_msg(header, msg_structure._body);			
 				} catch (invalid_header_exception& ex) {
-					//std::cerr << "Invalid header_exception.\n";
+					std::cerr << "Do receive: " << ex.what() << " \n";
 				}
-				//std::cerr << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
 			} else {
-				//std::cerr << "Do receive: " << error << "\n";
-				//std::cerr << "Trying to receive one more time.\n";
+				std::cerr << "Do receive: " << error << "\n";
 				do_receive();
 			}
 		}
@@ -148,11 +142,10 @@ void server::do_manage_msg(base_header* header, std::string& body)
 	/*std::cerr << "-----------------------------------------\n";
 	std::cerr << "Jestem w Managerze wiadomości.\n";
 	std::cerr << "Nagłówek: " << header_name << "\n";
-	//std::cerr << "Body: " << body << "\n";
+	std::cerr << "Body: " << body << "\n";
 	std::cerr << "-----------------------------------------\n";*/
 	// Skopiuj obiekt endpointa nadawcy.
 	boost::asio::ip::udp::endpoint remote_udp_endpoint(sender_endpoint_);
-	//std::cerr << "Blablabla\n";
 	if (header_name == CLIENT) {
 		std::shared_ptr<client_header> c_header(
 			dynamic_cast<client_header*>(header)
@@ -166,11 +159,8 @@ void server::do_manage_msg(base_header* header, std::string& body)
 				static_cast<size_t>(clientid)
 			)
 		);
-
 		const std::string client_str_tcp_endpoint =
 			convert_remote_tcp_endpoint_to_string(remote_tcp_endpoint);
-
-	//	std::cerr << "Przed 1\n";
 		// Zbuduj strukturę danych dla klienta.
 		client_data* c_data = new client_data(
 			fifo_size_ / 2,
@@ -180,8 +170,6 @@ void server::do_manage_msg(base_header* header, std::string& body)
 			fifo_low_watermark_,
 			buf_len_
 		);
-
-	//	std::cerr << "Po 1\n";
 		// Zaktualizuj obie mapy.
 		// 1)
 		client_map_.insert(
@@ -199,7 +187,6 @@ void server::do_manage_msg(base_header* header, std::string& body)
 		);
 		do_receive();
 	} else if (header_name == RETRANSMIT) {
-		//std::cerr << "To retransmit temu winien\n";
 		std::shared_ptr<retransmit_header> r_header(
 			dynamic_cast<retransmit_header*>(header)
 		);
@@ -221,11 +208,9 @@ void server::do_manage_msg(base_header* header, std::string& body)
 		//
 		// Retransmisja:
 		// 1) Utwórz inteligentny wskaźnik na kopię aktualnego endpointa.
-		//std::cerr << "Przed 2\n";
 		std::shared_ptr<boost::asio::ip::udp::endpoint> remote_endpoint(
 			new boost::asio::ip::udp::endpoint(sender_endpoint_)
 		);
-		//std::cerr << "Po 2\n";
 		// Wznów komunikację po gnieździe UDP.
 		do_receive();
 		// Wywołaj funkcję retransmisji z parametrami:
@@ -233,43 +218,26 @@ void server::do_manage_msg(base_header* header, std::string& body)
 		// -> listą datagramów
 		do_transmit_data(remote_endpoint, dgram_list);
 	} else if (header_name == UPLOAD) {
-		//std::cerr << "Body UPLOADA: " << body << "\n";
-		/*std::cerr << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
-		std::cerr << "\n";
-		std::cerr << "\n";
-		std::cerr << "\n";*/
-		//std::cerr << "Będzie UPLOAD\n";
 		std::shared_ptr<upload_header> u_header(
 			dynamic_cast<upload_header*>(header)
 		);
-
 		// Skonwertuj dane z postaci string na wektor liczb 16-bit ze znakiem.
 		std::vector<std::int16_t> data = 
 			string_converter::to_vector_int16(body);
-		//std::cerr << "Zrobiłem konwersję ze stringa na wektor\n";
 		// Ściągnij identyfikator klienta.
 		const size_t clientid = client_map_[remote_udp_endpoint];
-		// ZAKŁADAMY PÓKI CO, ŻE PRZESŁANY NUMER JEST DOBRY. TODO: Sprawdzić, czy tak faktycznie jest.
 		const size_t client_dgram_nr = u_header->_nr;
-		/*std::cerr << "Next requested datagram: " << client_data_map_[clientid]->get_last_dgram_nr() << "\n";
-		std::cerr << "Numer w datagramie UPLOAD: " << client_dgram_nr << "\n";*/
-		//std::cerr << "Przed podjęciem decyzji\n";
 		const bool decision = 
 			client_dgram_nr == client_data_map_[clientid]->get_last_dgram_nr();
 		if (decision) {
 			// Zaktualizuj dane po uploadzie w mapie danych klienta.
-		//	std::cerr << "Przed zaktualizowaniem kontentu\n";
 			client_data_map_[clientid]->actualize_content_after_upload(data);
-		//	std::cerr << "Po aktualizacji kontentu\n";
-			//std::cerr << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
 			// Numer kolejnego oczekiwanego datagramu.
 			const size_t next_ack = client_dgram_nr + 1;
 			// Rozmiar kolejki.
 			const size_t available_size = 
 				client_data_map_[clientid]->get_available_size();
-			//std::cerr << "Rozmiar kolejki po uploadzie:"
-			// Wyślij datagram potwierdzający
-		//	std::cerr << "Przed wysłaniem komunikatu\n";
+			// Wyślij datagram potwierdzający.
 			do_send_ack_datagram(
 				next_ack, 
 				available_size,
@@ -280,11 +248,8 @@ void server::do_manage_msg(base_header* header, std::string& body)
 		}
 	} else if (header_name == KEEPALIVE) {
 		// odznacz jakoś czas ostatniej rozmowy.
-		//std::cerr << "KEEPALIVE" << "\n";
 		do_receive();
 	}
-
-	//delete header;
 }
 
 void server::do_send_ack_datagram(const size_t ack, const size_t free_space,
@@ -296,8 +261,6 @@ void server::do_send_ack_datagram(const size_t ack, const size_t free_space,
 	std::cerr << "ack: " << ack << "\n";
 	std::cerr << "wolne miejsce w kolejce: " << free_space << "\n";
 	std::cerr << "------------------------------------------\n";*/
-
-	//std::cerr << "Przed 3\n";
 	std::shared_ptr<std::string> ack_dgram(
 		new std::string(
 			"ACK " +
@@ -307,8 +270,6 @@ void server::do_send_ack_datagram(const size_t ack, const size_t free_space,
 			"\n"
 		)
 	);
-	//std::cerr << "Po 3\n";
-
 	udp_socket_.async_send_to(
 		boost::asio::buffer(*ack_dgram, ack_dgram->size()),
 		sender_endpoint_,
@@ -317,18 +278,13 @@ void server::do_send_ack_datagram(const size_t ack, const size_t free_space,
 			size_t bytes_transferred
 		) {
 			if (error) {
-				//std::cerr << "Błąd\n";
+				std::cerr << "Do send ack datagram: " << error << " \n";
 				// Jeżeli nie udało się przesłać potwierdzenia,
 				// to spróbuj jeszcze raz.
-				//std::cerr << "Nastąpił błąd jak wysyłałem ACKA.\n";
 				do_send_ack_datagram(ack, free_space, remote_endpoint);
 			} else {
-				//std::cerr << "Wysłałem pomyślnie\n";
 				do_receive();
 			}
-			// Niezależnie od rezultatu operacji przesłania potwierdzenia
-			// wznów nasłuchiwanie na datagramy po UDP.
-			
 		}
 	);
 }
@@ -342,9 +298,7 @@ void server::do_transmit_data(
 	std::cerr << "Adres: " << *remote_endpoint << "\n";
 	std::cerr << "----------------------------------------------\n";*/
 	for (auto it = dgram_list.begin(); it != dgram_list.end(); ++it) {
-	//	std::cerr << "Przed 4\n";
 		std::shared_ptr<std::string> dgram(new std::string(*it));
-	//	std::cerr << "Po 4\n";
 		udp_socket_.async_send_to(
 			boost::asio::buffer(*dgram), 
 			*remote_endpoint,
@@ -352,43 +306,15 @@ void server::do_transmit_data(
 				boost::system::error_code error, 
 				size_t bytes_transferred
 			) {
-				if (!error) {
-					//do_transmit_data(remote_endpoint, dgram_list);
-				} else {
-				//	std::cerr << "Do transmit data: " << error << "\n";
-					//std::cerr << "Going to 'do recive'\n";
-					//do_receive();
+				if (error) {
+					std::cerr << "Do transmit data: " << error << "\n";
 				}
 				do_receive();
-				
 			}
 		);
 	}
 }
-/*	const size_t dgram_list_size = dgram_list.size();
-	if (dgram_list_size > 0) {
-		std::shared_ptr<std::string> dgram(new std::string(dgram_list.back()));
 
-		udp_socket_.async_send_to(
-			boost::asio::buffer(*dgram), 
-			*remote_endpoint,
-			[this, remote_endpoint, &dgram_list](
-				boost::system::error_code error, 
-				size_t bytes_transferred
-			) {
-				if (!error) {
-					do_transmit_data(remote_endpoint, dgram_list);
-				} else {
-					std::cerr << "Do transmit data: " << error << "\n";
-					std::cerr << "Going to 'do recive'\n";
-					do_receive();
-				}
-			}
-		);
-	} else {
-		do_receive();
-	}
-}*/
 
 //===========================================================================//
 //                                                                           //
@@ -447,7 +373,6 @@ void server::do_accept()
 			if (!acceptor_.is_open()) {
 				return;
 			}
-
 			if (!error) {
 				connection_manager_->start(
 					std::make_shared<connection>(
@@ -458,9 +383,8 @@ void server::do_accept()
 					this
 				);
 			} else {
-				//std::cerr << "Do async accept: " << error << "\n";
+				std::cerr << "Do async accept: " << error << "\n";
 			}
-			//std::cerr << "Zaraz znowu będę akceptował\n";
 			do_accept();
 		}
 	);
@@ -473,7 +397,6 @@ size_t server::get_next_clientid()
 
 void server::send_raport()
 {
-	//std::cerr << "Wysyłam raport\n";
 	raport_ = "\n";
 	for (auto it = client_map_.begin(); it != client_map_.end(); ++it) {
 		const size_t idx = static_cast<size_t>(it->second);
@@ -510,10 +433,8 @@ void server::mixer()
 		}
 	}
 	//std::cerr << "Mamy " << active_queue_clients_id.size() << " aktywnych kolejek\n";
-	// Zbuduj strukturę mixer_input*
-	//std::cerr << "Przed mikserem 5\n";
+	// Zbuduj strukturę mixer_input*.
 	mixer_input* inputs = new mixer_input[inputs_size];
-	//std::cerr << "Po mikserze 5\n";
 	int next = 0;
 	for (auto it = active_queue_clients_id.begin(); 
 		it != active_queue_clients_id.end(); ++it) {
@@ -581,8 +502,6 @@ void server::mixer()
 			"\n" +
 			message
 		);
-
-	//	std::cerr << "To wysyłam:\n";
 		// Wrzuć datagram do kolejki każdemu aktywnego klienta, 
 		// któremu zamierzasz go wysłać.
 		const size_t clientid = it->first;
@@ -596,12 +515,12 @@ void server::mixer()
 				if (!error) {
 					// Świetnie, poszło.
 				} else {
-	//				std::cerr << "Send mixed data: " << error << "\n";
+					std::cerr << "Send mixed data: " << error << "\n";
 				}
 			}
 		);
 	} current_datagram_nr_++;
-	//delete[] inputs;
+	delete[] inputs;
 	// Rozpocznij oczekiwanie na kolejne wywołanie miksera:
 	do_mixery();
 }
@@ -638,7 +557,7 @@ void server::run_raport_timer()
 	raport_timer_.async_wait(
 		[this](boost::system::error_code error) {
 			if (error) {
-	//			std::cerr << "Błąd w raportowym zegarku\n";
+				std::cerr << "Run raport timer: " << error << " \n";
 			} else {
 				send_raport();
 			}

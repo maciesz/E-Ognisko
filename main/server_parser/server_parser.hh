@@ -15,9 +15,6 @@
 class server_parser
 {
 public:
-	// Ostatecznie fhw należy po zwróceniu wyniku przez funkcję wyznaczyć jako:
-	//
-	// fhw = std::min(fhw, fifo_size);
 	static response parse(
 		size_t& port, 
 		size_t& fifo_size,

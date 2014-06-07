@@ -17,7 +17,6 @@ base_header* header_factory::match_header(const header_data& data)
 	auto it = factory.find(data._header_name);
 	// Jeżeli początek nagłówka jest poprawnie zdefiniowany
 	if (it != factory.end()) {
-		//std::cout << data._header_name << "\n";
 		// Stwórz instancję obiektu odpowiedniego nagłówka
 		base_header* header = it->second->get_instance();
 		// Uwaga:

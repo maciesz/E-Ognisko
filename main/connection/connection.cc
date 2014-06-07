@@ -15,7 +15,6 @@ connection::connection(
 
 void connection::start()
 {
-	//std::cerr << "Jestem w connection: SZAŁ!\n";
 	do_write_clientid();
 }
 

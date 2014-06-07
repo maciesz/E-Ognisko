@@ -150,7 +150,6 @@ private:
 	//                                                                       //
 	//=======================================================================//
 	std::array<char, CLIENT_BUFFER_LEN> read_buf_;
-//	std::array<char, CLIENT_BUFFER_LEN> write_buf_;
 	/// Gniazdo do łączenia się po UDP.
 	boost::asio::ip::udp::socket udp_socket_;
 	/// Resolver UDP.
@@ -167,8 +166,6 @@ private:
 	size_t nr_expected_;
 	/// Numer ostatnio wysłanego datagramu przez klienta.
 	size_t actual_dgram_nr_;
-	/// Numer oczekiwanego datagramu ze strony serwera.
-	size_t server_demand_ack_;
 	/// Największy numer ostatnio otrzymanego datagramu od serwera.
 	size_t nr_max_seen_;
 	/// Liczba wolnych bajtów w FIFO.
@@ -184,9 +181,6 @@ private:
 	/// Fabryka nagłówków.
 	header_factory factory_;
 	/// Bufor przejmujący dane z wejścia.
-	boost::asio::streambuf input_buffer_;
-	/// Endpoint
-	//boost::asio::ip::udp::endpoint remote_endpoint_;
-	char* buffer_;
+	char* input_buffer_;
 };
 #endif

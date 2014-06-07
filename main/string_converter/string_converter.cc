@@ -13,7 +13,5 @@ std::vector<std::int16_t> string_converter::to_vector_int16(
 	);
 	// Skonwertuj go na wektor liczb 16-bitowych ze znakiem:
 	std::vector<std::int16_t> s_vector(s_ptr, s_ptr + (body_size / 2));
-
-	//delete s_ptr;
 	return s_vector;
 }
