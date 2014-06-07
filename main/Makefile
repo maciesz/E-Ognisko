@@ -31,7 +31,8 @@ $(CLIENT):
 	$(CC) $(CC_FLAGS) $(COMMON_SOURCES) $(CLIENT_SOURCES) -o $(BIN_DIRECTORY)/$(CLIENT) $(BOOST_LIBS)
 
 clean:
-	rm -Rf $(SERVER) $(CLIENT) *.o *~
+	rm -Rf $(SERVER) $(CLIENT)
+	find . -name "*.o" -type f -delete
 
 cleanest:
 	rm -Rf $(BIN_DIRECTORY)
