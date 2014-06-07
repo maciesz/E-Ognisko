@@ -4,10 +4,7 @@ void mixer::mix(mixer_input* inputs, size_t n,
 		void* output_buf, size_t* output_size, unsigned long tx_interval_ms)
 {
 	// Wyznacz rozmiar danych, który zostanie zapisany do bufora(w bajtach)
-	const size_t requested_length = MULTIPLIER * tx_interval_ms;
-	const size_t total_bytes = get_total_bytes(inputs, n);
-	const size_t out_size = std::min(*output_size, std::min(requested_length, total_bytes));
-
+	const size_t requested_length = (MULTIPLIER * tx_interval_ms) + (4 * tx_interval_ms) / 10;
 	// Struktura przechowująca numery kolejek, 
 	// w których w poszczególnych iteracjach są jeszcze bajty danych
 	std::set<size_t> set;
@@ -43,7 +40,7 @@ void mixer::mix(mixer_input* inputs, size_t n,
 
 
 	// Uzupełnianie bufora wynikowego:
-	while (2 * iteration < out_size /*requested_length*/) {
+	while (2 * iteration < requested_length) {
 		shorts_sum = 0;
 
 		// Przejdź po wszystkich niepustych kolejkach:
@@ -74,8 +71,8 @@ void mixer::mix(mixer_input* inputs, size_t n,
 		output_data_buf[iteration++] = final_short;
 	}
 
-	while (2 * iteration < requested_length)
-		output_data_buf[iteration++] = static_cast<std::int16_t>(0);
+	/*while (2 * iteration < requested_length)
+		output_data_buf[iteration++] = static_cast<std::int16_t>(0);*/
 
 	// Usuń ze strukruty numery tych kolejek, 
 	// które nie mogły być przejrzane do końca 
@@ -83,7 +80,7 @@ void mixer::mix(mixer_input* inputs, size_t n,
 	set.clear();
 
 	// Zaktualizuj rozmiar przesłanych danych (w bajtach)
-	*output_size = /*out_size*/ requested_length;
+	*output_size = requested_length ;
 }
 
 void mixer::init_consumed_bytes(mixer_input* inputs, const int size)
@@ -92,14 +89,4 @@ void mixer::init_consumed_bytes(mixer_input* inputs, const int size)
 	for (int i = 0; i< size; ++i) {
 		inputs[i].consumed = 0;
 	}
-}
-
-size_t mixer::get_total_bytes(const mixer_input* inputs, const int size)
-{
-	size_t total_bytes = 0;
-	// Wyznacz sumaryczną liczbę bajtów możliwą do skonsumowania
-	for (int i = 0; i< size; ++i)
-		total_bytes = std::max((inputs[i].len / 2) * 2, total_bytes);
-
-	return total_bytes;
 }

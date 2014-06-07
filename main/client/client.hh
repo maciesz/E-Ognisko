@@ -24,7 +24,7 @@
 #include "../common/header_titles.hh"
 #include "../common/global_variables.hh"
 // 2) Parsery:
-#include "../parsers/headerline_parser.hh"
+#include "../common_parsers/headerline_parser.hh"
 #include "../message_converter/message_converter.hh"
 // 3) Fabryki:
 #include "../factories/header_factory.hh"
@@ -45,10 +45,10 @@ public:
 		boost::asio::io_service&, 
 		std::string& port, 
 		std::string& host,
-		std::uint16_t retransmit_limit,
-		std::uint16_t keepalive_period,
-		std::uint16_t reconnect_period,
-		std::uint16_t connection_period
+		size_t retransmit_limit,
+		size_t keepalive_period,
+		size_t reconnect_period,
+		size_t connection_period
 	);
 	/// Destruktor.
 	~client();
@@ -111,9 +111,9 @@ private:
 	/// Bufor na raporty.
 	boost::asio::streambuf raport_buffer_;
 	/// Parametr częstości podejmowania prób nawiązania połączenia po TCP.
-	const std::uint16_t reconnect_period_;
+	const size_t reconnect_period_;
 	/// Maksymalny czas, przez który nie otrzymaliśmy żadnego komunikatu po TCP.
-	const std::uint16_t connection_period_;
+	const size_t connection_period_;
 
 	//=======================================================================//
 	//                                                                       //
@@ -134,7 +134,7 @@ private:
 	/// Odbierz wiadomość z gniazda UDP.
 	void do_handle_udp_request();
 	/// Wypisz zmiksowane dane na standardowe wyjście.
-	void do_write_mixed_data_to_stdout(std::string& data);
+	void do_write_mixed_data_to_stdout(std::shared_ptr<std::string> data);
 	/// Zarządzaj wiadomością na podstawie jej nagłówka.
 	void do_manage_msg(base_header* header, std::string& body);
 	/// Czytaj dane o określonej wielkości z STDIN.
@@ -144,7 +144,7 @@ private:
 	/// Podejmij próbę ponownego wysłania datagramu.
 	void do_resend_last_datagram();
 	/// Retransmituj datagramy o numerach większych niż 'nr'.
-	void do_retransmit(std::uint32_t nr);
+	void do_retransmit(size_t nr);
 	//=======================================================================//
 	// Zmienne.                                                              //
 	//                                                                       //
@@ -158,21 +158,21 @@ private:
 	/// Deskryptor wejścia.
 	boost::asio::posix::stream_descriptor input_;
 	/// Parametr powtarzalności keepalive'a.
-	const std::uint16_t keepalive_period_;
+	const size_t keepalive_period_;
 	/// Współczynnik retransmisji.
-	const std::uint16_t retransmit_limit_;
+	const size_t retransmit_limit_;
 	/// Identyfikator klienta w komunikacji z serwerem.
-	std::uint32_t clientid_; // może się zmienić w sytuacji utraty połączenia.
+	size_t clientid_; // może się zmienić w sytuacji utraty połączenia.
 	/// Numer kolejnego dgramu(liczone od pierwszego przesłanego komunikatu).
-	std::uint32_t nr_expected_;
+	size_t nr_expected_;
 	/// Numer ostatnio wysłanego datagramu przez klienta.
-	std::uint32_t actual_dgram_nr_;
+	size_t actual_dgram_nr_;
 	/// Numer oczekiwanego datagramu ze strony serwera.
-	std::uint32_t server_demand_ack_;
+	size_t server_demand_ack_;
 	/// Największy numer ostatnio otrzymanego datagramu od serwera.
-	std::uint32_t nr_max_seen_;
+	size_t nr_max_seen_;
 	/// Liczba wolnych bajtów w FIFO.
-	std::int32_t win_;
+	size_t win_;
 	/// Tytuł ostatniego nagłówka.
 	std::string last_header_title_;
 	/// Ostatni datagram
@@ -187,5 +187,6 @@ private:
 	boost::asio::streambuf input_buffer_;
 	/// Endpoint
 	//boost::asio::ip::udp::endpoint remote_endpoint_;
+	char* buffer_;
 };
 #endif

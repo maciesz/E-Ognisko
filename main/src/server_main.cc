@@ -4,21 +4,22 @@
 
 #include <boost/asio.hpp>
 
-#include "parsers/server_parser.hh"
-#include "common/structures.hh"
-#include "common/response.hh"
-#include "server/server.hh"
+#include "../server_parser/server_parser.hh"
+#include "../common/structures.hh"
+#include "../common/response.hh"
+#include "../server/server.hh"
 
 int main(int argc, char** argv)
 {
+	//std::ios_base::sync_with_stdio(false);
 	program_parametres ps(argc, argv);
 
-	std::uint16_t port;
-	std::uint16_t fifo_size;
-	std::uint16_t fifo_low_watermark;
-	std::uint16_t fifo_high_watermark;
-	std::uint16_t buf_len;
-	std::uint16_t tx_interval;
+	size_t port;
+	size_t fifo_size;
+	size_t fifo_low_watermark;
+	size_t fifo_high_watermark;
+	size_t buf_len;
+	size_t tx_interval;
 
 	response res = server_parser::parse(
 		port,

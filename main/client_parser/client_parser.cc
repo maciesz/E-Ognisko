@@ -1,15 +1,15 @@
 #include "client_parser.hh"
 
-response client_parser::parse(std::uint16_t& port, std::string& server_name, 
-		std::uint16_t& retransmit, const program_parametres& prms)
+response client_parser::parse(size_t& port, std::string& server_name, 
+		size_t& retransmit, const program_parametres& prms)
 {
 	namespace po = boost::program_options;
 	try {
 		po::options_description desc("Options");
 		desc.add_options()
-			(",p", po::value<std::uint16_t>(&port), "PORT")
+			(",p", po::value<size_t>(&port), "PORT")
 			(",s", po::value<std::string>(&server_name)->required(), "SERVER_NAME")
-			(",X", po::value<std::uint16_t>(&retransmit), "RETRANSMIT_LIMIT")
+			(",X", po::value<size_t>(&retransmit), "RETRANSMIT_LIMIT")
 		;
 
 		po::variables_map vm;

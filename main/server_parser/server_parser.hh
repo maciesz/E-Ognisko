@@ -19,12 +19,12 @@ public:
 	//
 	// fhw = std::min(fhw, fifo_size);
 	static response parse(
-		std::uint16_t& port, 
-		std::uint16_t& fifo_size,
-		std::uint16_t& flw, 
-		std::uint16_t& fhw, 
-		std::uint16_t& buf_len,
-		std::uint16_t& tx_interval, 
+		size_t& port, 
+		size_t& fifo_size,
+		size_t& flw, 
+		size_t& fhw, 
+		size_t& buf_len,
+		size_t& tx_interval, 
 		const program_parametres& prms
 	);
 };

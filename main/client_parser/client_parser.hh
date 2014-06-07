@@ -14,7 +14,7 @@
 class client_parser
 {
 public:
-	static response parse(std::uint16_t& port, std::string& server_name, 
-		std::uint16_t& retransmit, const program_parametres& params);
+	static response parse(size_t& port, std::string& server_name, 
+		size_t& retransmit, const program_parametres& params);
 };
 #endif

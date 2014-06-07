@@ -39,6 +39,8 @@ public:
 	/// Przekaż id klienta.
 	size_t get_clientid();
 	
+	/// Gniazdo TCP do komunikacji.
+	boost::asio::ip::tcp::socket socket_;
 private:
 	/// Wykonuje asynchroniczną operację odczytu danych od klienta.
 	void do_read();
@@ -51,9 +53,6 @@ private:
 
 	/// Zwraca długość napisu dla podanej długości tekstu.
 	size_t get_length(size_t length);
-	
-	/// Gniazdo TCP do komunikacji.
-	boost::asio::ip::tcp::socket socket_;
 
 	/// Manager połączeń po TCP.
 	connection_manager& connection_manager_;

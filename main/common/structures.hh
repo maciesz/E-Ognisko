@@ -51,13 +51,13 @@ struct program_parametres
 struct header_data
 {
 	header_data(const std::string& header_name, 
-		const std::vector<std::uint32_t>& param_list) 
+		const std::vector<size_t>& param_list) 
 	: _header_name(header_name), _param_list(param_list)
 	{
 	}
 
 	const std::string _header_name;
-	const std::vector<std::uint32_t> _param_list;
+	const std::vector<size_t> _param_list;
 };
 
 
@@ -109,7 +109,7 @@ struct client_header: public base_header
 		return new client_header;
 	}
 
-	std::uint32_t _client_id;
+	size_t _client_id;
 };
 
 // Nagłówek typu: UPLOAD [nr]
@@ -134,7 +134,7 @@ struct upload_header: public base_header
 		return new upload_header;
 	}
 
-	std::uint32_t _nr;
+	size_t _nr;
 };
 
 // Nagłówek typu: DATA [nr] [ack] [win]
@@ -161,9 +161,9 @@ struct data_header: public base_header
 		return new data_header;
 	}
 
-	std::uint32_t _nr;
-	std::uint32_t _ack;
-	std::uint32_t _win;
+	size_t _nr;
+	size_t _ack;
+	size_t _win;
 };
 
 // Nagłówek typu: ACK [ack] [win]
@@ -189,8 +189,8 @@ struct ack_header: public base_header
 		return new ack_header;
 	}
 
-	std::uint32_t _ack;
-	std::uint32_t _win;
+	size_t _ack;
+	size_t _win;
 };
 
 // Nagłówek typu: RETRANSMIT [nr]
@@ -215,7 +215,7 @@ struct retransmit_header: public base_header
 		return new retransmit_header;
 	}
 
-	std::uint32_t _nr;
+	size_t _nr;
 };
 
 // Nagłówek typu: KEEPALIVE
@@ -248,13 +248,13 @@ struct keepalive_header: public base_header
 //===========================================================================// 
 struct retransmit_dgram
 {
-	retransmit_dgram(const std::string& dgram_msg, std::uint32_t dgram_nr) 
+	retransmit_dgram(const std::string& dgram_msg, size_t dgram_nr) 
 	: _message(dgram_msg), _dgram_nr(dgram_nr)
 	{
 	}
 
 	const std::string _message;
-	const std::uint32_t _dgram_nr; // Datagramy pochodzące od serwera
+	const size_t _dgram_nr; // Datagramy pochodzące od serwera
 };
 
 

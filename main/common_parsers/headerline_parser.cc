@@ -12,12 +12,12 @@ header_data headerline_parser::get_data(const std::string& headerline_s)
 	if (!args.size())
 		throw invalid_header_exception();
 	// Deklaracja listy wynikowej
-	std::vector<std::uint32_t> param_list;
+	std::vector<size_t> param_list;
 	// Konwersja wszystkich dodatkowych parametrów na liczbowe
 	const int size = static_cast<int>(args.size());
 	for (int i = 1; i< size; ++i) {
 		try {
-			param_list.push_back(boost::lexical_cast<std::uint32_t>(args[i]));
+			param_list.push_back(boost::lexical_cast<size_t>(args[i]));
 		} catch (boost::bad_lexical_cast &) {
 			// Jeśli zdarzy się taki bad_cast, to znaczy, że datagram nie został w pełni przekazany:
 			throw invalid_header_exception();
@@ -30,8 +30,6 @@ header_data headerline_parser::get_data(const std::string& headerline_s)
 				std::cerr << "args[" << i << "]: " << args[i] << "\n";
 			}
 			std::cerr << "----------------------------------------------\n";*/
-
-			break;
 		}
 	}
 	// Wyznaczenie nazwy głównej nagłówka

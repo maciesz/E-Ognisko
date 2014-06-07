@@ -82,11 +82,11 @@ void connection::do_write_raport(const std::string& raport)
 	boost::asio::async_write(
 		socket_,
 		boost::asio::buffer(std::move(msg)),
-		//boost::asio::transfer_exactly(msg_size),
+		boost::asio::transfer_at_least(msg_size),
 		[this, self](boost::system::error_code error, std::size_t) {
 			if (error) {
-				std::cerr << "Nastąpił błąd w kliencie: " << clientid_ << "\n";
-				std::cerr << "----------------------------------------\n";
+				//std::cerr << "Nastąpił błąd w kliencie: " << clientid_ << "\n";
+				//std::cerr << "----------------------------------------\n";
 				connection_manager_.stop(clientid_, shared_from_this());
 			}
 		}

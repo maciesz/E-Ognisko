@@ -1,43 +1,37 @@
-CXX=g++
-CXXFLAGS=-std=c++11 -Wall --pedantic
-BOOST_LIBS=-lboost_system -lboost_program_options -lboost_thread -lpthread
+APP=E-Ognisko
 
-SOURCES=$(shell find . -name "*.cc")
-#OBJECT_DIR=bin
-OBJECTS=$(SOURCES:%.cc=%.o)
-#$(addprefix $(OBJECT_DIR)/, $(patsubst %.cc, %.o, $(wildcard *.cc)))
-#$(SOURCES:%.cc=%.o))
-#HEADERS=$(SOURCES:%.cc=%.hpp)
+SRC_EXTENSION=cc
 
-TARGET=client_prog
+COMMON_SRC_DIRECTORIES=factories message_converter common_parsers
+SERVER_SRC_DIRECTORIES=client_data_on_server connection connection_manager mixer server string_converter server_parser
+CLIENT_SRC_DIRECTORIES=client client_parser
 
-.PHONY: all clean
+CLIENT=client_main
+SERVER=server_main
 
-all: $(TARGET)
-# $(OBJECT_DIR)
+COMMON_SOURCES:=$(shell find $(COMMON_SRC_DIRECTORIES) -name '*.$(SRC_EXTENSION)')
+SERVER_SOURCES:=$(shell find $(SERVER_SRC_DIRECTORIES) -name '*.$(SRC_EXTENSION)') src/server_main.cc
+CLIENT_SOURCES:=$(shell find $(CLIENT_SRC_DIRECTORIES) -name '*.$(SRC_EXTENSION)') src/client_main.cc
 
-#$(OBJECT_DIR):
-#	mkdir $(OBJECT_DIR)
+CC=g++
+CC_FLAGS=-std=c++11 -Wall --pedantic
+BOOST_LIBS=-lboost_system -lboost_program_options
 
-#$(OBJECT_DIR)/%.o: %.cc
-#	$(CXX) $(CXXFLAGS) -c $< -o $@
+BIN_DIRECTORY=bin
+BUILD_BIN_DIRECTORY:=$(shell mkdir -p $(BIN_DIRECTORY))
 
-$(TARGET): $(OBJECTS)
-	$(CXX) $(BOOST_LIBS) $^ -o $@
+.PHONY: all
 
-%.o: %.cc
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+all: $(SERVER) $(CLIENT)
 
-#all: $(SOURCES) $(TARGET)
+$(SERVER):
+	$(CC) $(CC_FLAGS) $(COMMON_SOURCES) $(SERVER_SOURCES) -o $(BIN_DIRECTORY)/$(SERVER) $(BOOST_LIBS)
 
-#$(TARGET): $(OBJECTS)
-#	$(CXX) main.cc $(CXXFLAGS) $^ -o $@ $(BOOST_LIBS)
-
-.PHONY: clean cleanest
+$(CLIENT):
+	$(CC) $(CC_FLAGS) $(COMMON_SOURCES) $(CLIENT_SOURCES) -o $(BIN_DIRECTORY)/$(CLIENT) $(BOOST_LIBS)
 
 clean:
-#rm -rf $(OBJECT_DIR)
-	find . -name "*.o" -type f -delete
+	rm -Rf $(SERVER) $(CLIENT) *.o *~
 
-cleanest: clean
-	rm -f $(TARGET)
+cleanest:
+	rm -Rf $(BIN_DIRECTORY)

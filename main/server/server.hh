@@ -31,7 +31,7 @@
 #include "../common/global_variables.hh"
 // 3) Parsery:
 #include "../message_converter/message_converter.hh"
-#include "../parsers/headerline_parser.hh"
+#include "../common_parsers/headerline_parser.hh"
 #include "../string_converter/string_converter.hh"
 // 4) Fabryki:
 #include "../factories/header_factory.hh"
@@ -40,6 +40,7 @@
 // 6) Wyjątki:
 #include "../exceptions/invalid_header_exception.hh"
 
+class connection_manager;
 
 class server
 {
@@ -52,11 +53,11 @@ public:
 	/// Konstruktor serwera.
 	explicit server(
 		std::string& port,
-		std::uint16_t fifo_size,
-		std::uint16_t fifo_low_watermark,
-		std::uint16_t fifo_high_watermark,
-		std::uint16_t buf_len,
-		std::uint16_t tx_interval
+		size_t fifo_size,
+		size_t fifo_low_watermark,
+		size_t fifo_high_watermark,
+		size_t buf_len,
+		size_t tx_interval
 	);
 	/// Destruktor.
 	~server();
@@ -65,7 +66,8 @@ public:
 	server& operator=(const server&) = delete;
 	/// Odpal pętlę io_service.
 	void run();
-
+	/// Zwolnij zasoby dla wskazanego klienta.
+	void free_resources(const size_t clientid);
 private:
 	/// IO-service umożliwiający wykonywanie asynchronicznych operacji.
 	boost::asio::io_service io_service_;
@@ -100,7 +102,7 @@ private:
 	/// Akceptor używany do nasłuchiwania na nadchodzące połączenia TCP.
 	boost::asio::ip::tcp::acceptor acceptor_;
 	/// Manager połączeń TCP.
-	connection_manager connection_manager_;
+	connection_manager* connection_manager_;
 	/// Kolejne gniazdo TCP do zaakceptowania.
 	boost::asio::ip::tcp::socket tcp_socket_;
 	/// Identyfikator klienta.
@@ -130,8 +132,8 @@ private:
 		std::shared_ptr<boost::asio::ip::udp::endpoint> remote_endpoint,
 		std::list<std::string>& dgram_list);
 	/// Konwertuj endpoint na human-readable form.
-	std::string convert_remote_udp_endpoint_to_string(
-		boost::asio::ip::udp::endpoint remote_endpoint);
+	std::string convert_remote_tcp_endpoint_to_string(
+		boost::asio::ip::tcp::endpoint remote_tcp_endpoint);
 	/// Wymieszaj dane pochodzące od klientów.
 	void mixer();
 	/// Odpal zegarek do miksowania.
@@ -149,19 +151,17 @@ private:
 	/// Resolver do UDP.
 	boost::asio::ip::udp::resolver udp_resolver_;
 	/// Numer aktualnie wysyłanego datagramu.
-	std::uint32_t current_datagram_nr_;
-	/// Bufor serwera przechowujący zmiksowane dane.
-	std::vector<std::int16_t> mixer_buf_;
+	size_t current_datagram_nr_;
 	/// Port.
 	const std::string port_;
 	/// Parametry kolejki:
-	const std::uint16_t fifo_size_;
-	const std::uint16_t fifo_low_watermark_;
-	const std::uint16_t fifo_high_watermark_;
+	const size_t fifo_size_;
+	const size_t fifo_low_watermark_;
+	const size_t fifo_high_watermark_;
 	/// Długość kolejki zapamiętanych datagramów.
-	const std::uint16_t buf_len_;
+	const size_t buf_len_;
 	/// Parametr częstości uruchamiania miksera.
-	const std::uint16_t tx_interval_;
+	const size_t tx_interval_;
 	/// Mikserowy zegarek.
 	boost::asio::deadline_timer mixer_timer_;
 	/// Bufor do odczytu danych po UDP.
@@ -170,7 +170,7 @@ private:
 	boost::asio::ip::udp::endpoint sender_endpoint_;
 	/// Fabryka nagłówków.
 	header_factory factory_;
-	/// Bufor na wyjście.
+	/// Bufor serwera przechowujący zmiksowane dane.
 	char* write_buf_;
 
 	//=======================================================================//
@@ -179,7 +179,7 @@ private:
 	/// Mapa endpointów UDP.
 	// [klucz]: endpoint UDP klienta
 	// [wartość]: identyfikator przypisany konkretnemu klientowi
-	std::map<boost::asio::ip::udp::endpoint, std::int32_t> client_map_;
+	std::map<boost::asio::ip::udp::endpoint, size_t> client_map_;
 	/// Mapa ze strukturami przypisanymi konkretnym klientom.
 	// [klucz]: identyfikator klienta
 	// [wartość]: struktura client_data przechowująca:
@@ -191,7 +191,7 @@ private:
 	//    + maksymalną liczbę bajtów w kolejce(od ostatniego raportu)
 	//    + aktualny rozmiar kolejki
 	// -> listę ostatnich datagramów przesłanych przez klienta
-	std::map<std::uint32_t, client_data*> client_data_map_;
+	std::map<size_t, client_data*> client_data_map_;
 	/// Mapa zegark
 };
 #endif
