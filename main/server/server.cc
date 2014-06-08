@@ -170,14 +170,7 @@ void server::do_manage_msg(base_header* header, std::string& body)
 		const std::string client_str_tcp_endpoint =
 			convert_remote_tcp_endpoint_to_string(remote_tcp_endpoint);
 		// Zbuduj strukturę danych dla klienta.
-		client_data* c_data = new client_data(
-			fifo_size_ / 2,
-			client_str_tcp_endpoint,
-			remote_udp_endpoint,
-			fifo_high_watermark_,
-			fifo_low_watermark_,
-			buf_len_
-		);
+		
 		// Zaktualizuj mapy.
 		// 1)
 		client_map_.insert(
@@ -190,16 +183,27 @@ void server::do_manage_msg(base_header* header, std::string& body)
 		client_data_map_.insert(
 			std::make_pair(
 				clientid,
-				c_data
+				std::unique_ptr<client_data>(
+					new client_data(
+						fifo_size_ / 2,
+						client_str_tcp_endpoint,
+						remote_udp_endpoint,
+						fifo_high_watermark_,
+						fifo_low_watermark_,
+						buf_len_
+					)
+				)
 			)
 		);
 		// 3)
 		udp_dgram_timers_.insert(
 			std::make_pair(
 				clientid,
-				new boost::asio::deadline_timer(
-					io_service_,
-					boost::posix_time::milliseconds(udp_dgram_timers_period_)
+				std::unique_ptr<boost::asio::deadline_timer>(
+					new boost::asio::deadline_timer(
+						io_service_,
+						boost::posix_time::milliseconds(udp_dgram_timers_period_)
+					)
 				)
 			)
 		);

@@ -10,6 +10,7 @@
 #include <iostream>
 #include <iterator> // std::back_inserter?
 #include <map>
+#include <memory> // std::unique_ptr
 #include <signal.h> // signals
 #include <sstream> // std::ostringstream, std::istream
 #include <string>
@@ -199,10 +200,10 @@ private:
 	//    + maksymalną liczbę bajtów w kolejce(od ostatniego raportu)
 	//    + aktualny rozmiar kolejki
 	// -> listę ostatnich datagramów przesłanych przez klienta
-	std::map<size_t, client_data*> client_data_map_;
+	std::map<size_t, std::unique_ptr<client_data>> client_data_map_;
 	/// Mapa zegarków dla dgramów przychodzących po UDP.
 	// [klucz]: identyfikator klienta
 	// [wartość]: zegarek odmierzający czas od ostatnio nadanego dgramu.
-	std::map<size_t, boost::asio::deadline_timer*> udp_dgram_timers_;
+	std::map<size_t, std::unique_ptr<boost::asio::deadline_timer>> udp_dgram_timers_;
 };
 #endif
