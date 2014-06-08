@@ -109,10 +109,10 @@ private:
 	size_t clientid_;
 	/// Tekst raportu.
 	std::string raport_;
-	/// Zegarek na raporty.
-	boost::asio::deadline_timer raport_timer_;
 	/// Okres wywoływania zegarka raportowego.
 	const size_t raport_timer_period_;
+	/// Zegarek na raporty.
+	boost::asio::deadline_timer raport_timer_;
 
 
 	//=======================================================================//

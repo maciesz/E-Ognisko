@@ -21,12 +21,14 @@ server::server(
 		connection_manager_(new connection_manager()),
 		tcp_socket_(io_service_),
 		clientid_(8),
-		raport_timer_(io_service_),
 		raport_timer_period_(1000),
+		raport_timer_(io_service_, 
+			boost::posix_time::milliseconds(raport_timer_period_)),
 		//=============================//
 		// Inicjalizacja UDP-owych     //
 		//=============================//
-		udp_socket_(io_service_, udp::endpoint(udp::v4(), boost::lexical_cast<short>(port))),
+		udp_socket_(io_service_, 
+			udp::endpoint(udp::v4(), boost::lexical_cast<short>(port))),
 		udp_resolver_(io_service_),
 		current_datagram_nr_(0),
 		port_(port),
@@ -35,7 +37,8 @@ server::server(
 		fifo_high_watermark_(fifo_high_watermark),
 		buf_len_(buf_len),
 		tx_interval_(tx_interval),
-		mixer_timer_(io_service_),
+		mixer_timer_(io_service_, 
+			boost::posix_time::milliseconds(tx_interval_)),
 		factory_(),
 		write_buf_(new char[CLIENT_BUFFER_LEN]),
 		udp_dgram_timers_period_(1000)
@@ -67,7 +70,7 @@ server::server(
 	// Zacznij akceptować przychodzące połączenia TCP.
 	do_accept();
 	// Zacznij raportować.
-	run_raport_timer();
+	//run_raport_timer();
 
 	//=======================================================================//
 	// UDP.                                                                  //
@@ -193,7 +196,10 @@ void server::do_manage_msg(base_header* header, std::string& body)
 		udp_dgram_timers_.insert(
 			std::make_pair(
 				clientid,
-				new boost::asio::deadline_timer(io_service_)
+				new boost::asio::deadline_timer(
+					io_service_,
+					boost::posix_time::milliseconds(udp_dgram_timers_period_)
+				)
 			)
 		);
 		do_receive();
@@ -259,10 +265,10 @@ void server::do_manage_msg(base_header* header, std::string& body)
 		// odznacz jakoś czas ostatniej rozmowy.
 		// Zacznij odliczać czas dla konkretnego klienta od początku.
 		/*run_udp_dgram_timer(
-			std::shared_ptr<boost::asio::ip::udp::endpoint>(
-				new boost::asio::ip::udp::endpoint(remote_udp_endpoint)
-			)
-		);*/
+				std::shared_ptr<boost::asio::ip::udp::endpoint>(
+					new boost::asio::ip::udp::endpoint(remote_udp_endpoint)
+				)
+			);*/
 		do_receive();
 	}
 }
@@ -548,7 +554,8 @@ void server::mixer()
 //===========================================================================//
 void server::do_mixery()
 {
-	mixer_timer_.expires_from_now(
+	mixer_timer_.expires_at(
+		mixer_timer_.expires_at() +
 		boost::posix_time::milliseconds(tx_interval_)
 	);
 	mixer_timer_.async_wait(
@@ -565,7 +572,8 @@ void server::do_mixery()
 void server::run_raport_timer()
 {
 	// Zacznij wysyłać raporty
-	raport_timer_.expires_from_now(
+	raport_timer_.expires_at(
+		raport_timer_.expires_at() + 
 		boost::posix_time::milliseconds(raport_timer_period_)
 	);
 
@@ -594,7 +602,8 @@ void server::run_udp_dgram_timer(
 	const size_t clientid = client_map_[*client_endpt];
 	auto it = udp_dgram_timers_.find(clientid);
 	if (it != udp_dgram_timers_.end()) {
-		it->second->expires_from_now(
+		it->second->expires_at(
+			it->second->expires_at() +
 			boost::posix_time::milliseconds(udp_dgram_timers_period_)
 		);
 

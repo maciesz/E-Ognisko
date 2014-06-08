@@ -56,7 +56,9 @@ public:
 	client& operator=(const client&) = delete;
 	client(const client&) = delete;
 private:
-
+	
+	/// Parametr częstości podejmowania prób nawiązania połączenia po TCP.
+	const size_t reconnect_period_;
 	/// Zegarek do ponownego łączenia z serwerem
 	boost::asio::deadline_timer reconnect_timer_;
 
@@ -110,8 +112,6 @@ private:
 	boost::asio::posix::stream_descriptor output_;
 	/// Bufor na raporty.
 	boost::asio::streambuf raport_buffer_;
-	/// Parametr częstości podejmowania prób nawiązania połączenia po TCP.
-	const size_t reconnect_period_;
 	/// Maksymalny czas, przez który nie otrzymaliśmy żadnego komunikatu po TCP.
 	const size_t connection_period_;
 

@@ -9,7 +9,9 @@ client::client(
 		size_t reconnect_period,
 		size_t connection_period) 
 	: 	
-		reconnect_timer_(io_service),
+	  	reconnect_period_(reconnect_period),
+		reconnect_timer_(io_service, 
+			boost::posix_time::milliseconds(reconnect_period_)),
 		port_(port),
 	  	address_(host),
 		//=========================================//
@@ -19,7 +21,6 @@ client::client(
 		tcp_resolver_(io_service),
 		output_(io_service, ::dup(STDOUT_FILENO)),
 	  	raport_buffer_(CLIENT_BUFFER_LEN),
-	  	reconnect_period_(reconnect_period),
 	  	connection_period_(connection_period),
 	  	//=========================================//
 	  	// UDP.                                    //
@@ -41,8 +42,10 @@ client::client(
 	  	win_(CLIENT_BUFFER_LEN),
 	  	last_header_title_(std::string("")),
 	  	last_datagram_(std::string("")),
-	  	keepalive_timer_(io_service),
-	  	connection_timer_(io_service),
+	  	keepalive_timer_(io_service, 
+	  		boost::posix_time::milliseconds(keepalive_period_)),
+	  	connection_timer_(io_service,
+	  		boost::posix_time::milliseconds(connection_period_)),
 	  	factory_(),
 	  	input_buffer_(new char[CLIENT_BUFFER_LEN])
 {
@@ -74,7 +77,8 @@ void client::handle_after_connect(const boost::system::error_code& error)
 	} else {
 		std::cerr << "Handle TCP connection..\n";
 		// Przystąp do wysyłania keepalive'ów:
-		reconnect_timer_.expires_from_now(
+		reconnect_timer_.expires_at(
+			reconnect_timer_.expires_at() +
 			boost::posix_time::milliseconds(reconnect_period_)
 		);
 		reconnect_timer_.async_wait(
@@ -105,7 +109,8 @@ void client::do_async_tcp_connect()
 
 void client::monitor_connection()
 {
-	connection_timer_.expires_from_now(
+	connection_timer_.expires_at(
+		connection_timer_.expires_at() +
 		boost::posix_time::milliseconds(connection_period_)
 	);
 
@@ -224,7 +229,8 @@ void client::do_tcp_reconnect()
 	// Zwlonij zasoby.
 	udp_socket_.close();
 	// Ustal czas, po upływie którego zostanie wywołany TCP reconnect.
-	reconnect_timer_.expires_from_now(
+	reconnect_timer_.expires_at(
+		reconnect_timer_.expires_at() +
 		boost::posix_time::milliseconds(reconnect_period_)
 	);
 	reconnect_timer_.async_wait(
@@ -287,7 +293,7 @@ void client::do_send_clientid_datagram()
 
 			if (!error) {
 				// Ponieważ jesteśmy podłączeni, to zacznij wysyłać KEEPALIVE'y.
-				// do_send_keepalive_dgram();
+				do_send_keepalive_dgram();
 				do_handle_udp_request();
 			} else {
 				// Jeśli nie wypaliło to:
@@ -316,6 +322,25 @@ void client::do_send_keepalive_dgram()
 				// Świetnie! Komunikat został poprawnie wysłany.
 				// Z tej okazji cieszymy się i nic nie robimy
 				// ... przez najbliższe 100ms(kupa czasu).
+							
+				keepalive_timer_.expires_at(
+					keepalive_timer_.expires_at() +
+					boost::posix_time::milliseconds(keepalive_period_)
+				);
+				keepalive_timer_.async_wait(
+					[this](boost::system::error_code error) {
+
+						if (!error) {
+							do_send_keepalive_dgram();
+						} else {
+							// Jeśli nie udało się wysłać keepalive'a to znaczy,
+							// że połączenie zostało przerwane i należy ponownie
+							// połączyć się z serwerem po TCP.
+							std::cerr << "Do send keepalive: " << error << "\n";
+							//do_tcp_reconnect();
+						}
+					}
+				);
 			} else {
 				// Jeżeli wystąpił błąd, to zaszła jedna z dwóch sytuacji:
 				// -> połączenie po TCP się urwało 
@@ -325,24 +350,6 @@ void client::do_send_keepalive_dgram()
 				//
 				// Niezależnie od przyczyny connection_timer czuwa nad tym.
 				std::cerr << "Send keepalive msg[Do send!]: " << error << "\n";
-			}
-		}
-	);
-
-	keepalive_timer_.expires_from_now(
-		boost::posix_time::milliseconds(keepalive_period_)
-	);
-	keepalive_timer_.async_wait(
-		[this](boost::system::error_code error) {
-
-			if (!error) {
-				do_send_keepalive_dgram();
-			} else {
-				// Jeśli nie udało się wysłać keepalive'a to znaczy,
-				// że połączenie zostało przerwane i należy ponownie
-				// połączyć się z serwerem po TCP.
-				std::cerr << "Do send keepalive: " << error << "\n";
-				//do_tcp_reconnect();
 			}
 		}
 	);
