@@ -9,6 +9,7 @@ client::client(
 		size_t reconnect_period,
 		size_t connection_period) 
 	: 	
+		signals_(io_service),
 	  	reconnect_period_(reconnect_period),
 		reconnect_timer_(io_service, 
 			boost::posix_time::milliseconds(reconnect_period_)),
@@ -49,6 +50,8 @@ client::client(
 	  	factory_(),
 	  	input_buffer_(new char[CLIENT_BUFFER_LEN])
 {
+	signals_.add(SIGINT);
+	signals_.add(SIGTERM);
 	//std::cerr << "Jestem w konstruktorze\n";
 	//=======================================================================//
 	// TCP.                                                                  //
@@ -322,7 +325,7 @@ void client::do_send_keepalive_dgram()
 				// Świetnie! Komunikat został poprawnie wysłany.
 				// Z tej okazji cieszymy się i nic nie robimy
 				// ... przez najbliższe 100ms(kupa czasu).
-							
+
 				keepalive_timer_.expires_at(
 					keepalive_timer_.expires_at() +
 					boost::posix_time::milliseconds(keepalive_period_)

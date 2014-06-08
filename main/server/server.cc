@@ -49,6 +49,7 @@ server::server(
 	//=======================================================================//
 	// Zarejestruj obsługę sygnału kończącego proces servera.
 	signals_.add(SIGINT);
+	signals_.add(SIGTERM);
 
 	//=======================================================================//
 	// Zegarek na sygnał.                                                    //

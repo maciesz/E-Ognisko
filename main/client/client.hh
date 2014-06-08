@@ -57,6 +57,8 @@ public:
 	client(const client&) = delete;
 private:
 	
+	/// Sygnały rejestrujące zakończenie działania procesu.
+	boost::asio::signal_set signals_;
 	/// Parametr częstości podejmowania prób nawiązania połączenia po TCP.
 	const size_t reconnect_period_;
 	/// Zegarek do ponownego łączenia z serwerem
