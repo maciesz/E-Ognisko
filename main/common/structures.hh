@@ -227,7 +227,7 @@ struct keepalive_header: public base_header
 
 	void set_parametres(const header_data& data)
 	{
-		std::cout << "UStawiam w KEEPALIVE\n";
+		//std::cout << "KEEPALIVE\n";
 		_header_name = data._header_name;
 
 		if (data._param_list.size() != 0)

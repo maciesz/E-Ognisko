@@ -22,6 +22,7 @@ server::server(
 		tcp_socket_(io_service_),
 		clientid_(8),
 		raport_timer_(io_service_),
+		raport_timer_period_(1000),
 		//=============================//
 		// Inicjalizacja UDP-owych     //
 		//=============================//
@@ -36,7 +37,8 @@ server::server(
 		tx_interval_(tx_interval),
 		mixer_timer_(io_service_),
 		factory_(),
-		write_buf_(new char[CLIENT_BUFFER_LEN])
+		write_buf_(new char[CLIENT_BUFFER_LEN]),
+		udp_dgram_timers_period_(1000)
 {	
 	//std::cout << "Jestem w konstruktorze!\n";
 	//=======================================================================//
@@ -78,6 +80,8 @@ server::server(
 
 server::~server()
 {
+	// Powyrzucaj zegarki z mapy dgramów do śmieci.
+	udp_dgram_timers_.clear();
 	// Usuń dane z bufora odczytującego dane po UDP.
 	std::fill(read_buf_.begin(), read_buf_.end(), 0);
 	// Usuń dane wszystkich klientów, które są przechowywane po stronie serwera
@@ -144,8 +148,10 @@ void server::do_manage_msg(base_header* header, std::string& body)
 	std::cerr << "Nagłówek: " << header_name << "\n";
 	std::cerr << "Body: " << body << "\n";
 	std::cerr << "-----------------------------------------\n";*/
+	
 	// Skopiuj obiekt endpointa nadawcy.
 	boost::asio::ip::udp::endpoint remote_udp_endpoint(sender_endpoint_);
+
 	if (header_name == CLIENT) {
 		std::shared_ptr<client_header> c_header(
 			dynamic_cast<client_header*>(header)
@@ -155,9 +161,7 @@ void server::do_manage_msg(base_header* header, std::string& body)
 		// Na podstawie id klienta ustal endpoint TCP.
 		// Zapisz endpoint do stringa.
 		boost::asio::ip::tcp::endpoint remote_tcp_endpoint(
-			connection_manager_->get_tcp_endpoint(
-				static_cast<size_t>(clientid)
-			)
+			connection_manager_->get_tcp_endpoint(clientid)
 		);
 		const std::string client_str_tcp_endpoint =
 			convert_remote_tcp_endpoint_to_string(remote_tcp_endpoint);
@@ -170,7 +174,7 @@ void server::do_manage_msg(base_header* header, std::string& body)
 			fifo_low_watermark_,
 			buf_len_
 		);
-		// Zaktualizuj obie mapy.
+		// Zaktualizuj mapy.
 		// 1)
 		client_map_.insert(
 			std::make_pair(
@@ -185,15 +189,20 @@ void server::do_manage_msg(base_header* header, std::string& body)
 				c_data
 			)
 		);
+		// 3)
+		udp_dgram_timers_.insert(
+			std::make_pair(
+				clientid,
+				new boost::asio::deadline_timer(io_service_)
+			)
+		);
 		do_receive();
 	} else if (header_name == RETRANSMIT) {
 		std::shared_ptr<retransmit_header> r_header(
 			dynamic_cast<retransmit_header*>(header)
 		);
 		// Ściągnij identyfikator klienta na podstawie endpointa.
-		const size_t client_id = static_cast<size_t>(
-			client_map_[remote_udp_endpoint]
-		);
+		const size_t client_id = client_map_[remote_udp_endpoint];
 		// Ściągnij nr, od którego klient prosi o retransmisję.
 		size_t retransmit_inf_nr = r_header->_nr;
 		// Ściągnij wszystkie dgramy zapamiętane w buforze rezerwowym
@@ -248,6 +257,12 @@ void server::do_manage_msg(base_header* header, std::string& body)
 		}
 	} else if (header_name == KEEPALIVE) {
 		// odznacz jakoś czas ostatniej rozmowy.
+		// Zacznij odliczać czas dla konkretnego klienta od początku.
+		/*run_udp_dgram_timer(
+			std::shared_ptr<boost::asio::ip::udp::endpoint>(
+				new boost::asio::ip::udp::endpoint(remote_udp_endpoint)
+			)
+		);*/
 		do_receive();
 	}
 }
@@ -399,7 +414,7 @@ void server::send_raport()
 {
 	raport_ = "\n";
 	for (auto it = client_map_.begin(); it != client_map_.end(); ++it) {
-		const size_t idx = static_cast<size_t>(it->second);
+		const size_t idx = it->second;
 		raport_ += client_data_map_[idx]->get_statistics();
 	}
 
@@ -423,7 +438,7 @@ void server::mixer()
 	size_t inputs_size = 0;
 	// Wyznacz listę id tych klientów, których kolejki są w stanie ACTIVE:
 	for (auto it = client_map_.begin(); it != client_map_.end(); ++it) {
-		const size_t clientid = static_cast<size_t>(it->second);
+		const size_t clientid = it->second;
 		queue_state state = 
 			client_data_map_[clientid]->rate_queue_state();
 
@@ -438,7 +453,7 @@ void server::mixer()
 	int next = 0;
 	for (auto it = active_queue_clients_id.begin(); 
 		it != active_queue_clients_id.end(); ++it) {
-		const size_t idx = static_cast<size_t>(*it);
+		const size_t idx = *it;
 
 		inputs[next].len = 2 * client_data_map_[idx]->get_queue_size();
 		inputs[next].consumed = 0;
@@ -465,7 +480,7 @@ void server::mixer()
 	//std::cerr << "Mixowanie zakończone\n";
 	for (auto it = active_queue_clients_id.begin(); 
 		it != active_queue_clients_id.end(); ++it) {
-		const size_t idx = static_cast<size_t>(*it);
+		const size_t idx = *it;
 
 		client_data_map_[idx]->actualize_content_after_mixery(
 			inputs[next].consumed
@@ -505,7 +520,7 @@ void server::mixer()
 		// Wrzuć datagram do kolejki każdemu aktywnego klienta, 
 		// któremu zamierzasz go wysłać.
 		const size_t clientid = it->first;
-		const size_t cnr = static_cast<uint32_t>(current_datagram_nr_);
+		const size_t cnr = current_datagram_nr_;
 		client_data_map_[clientid]->add_to_dgrams_list(datagram, cnr);
 		// Prześlij datagram klientowi.
 		udp_socket_.async_send_to(
@@ -551,7 +566,7 @@ void server::run_raport_timer()
 {
 	// Zacznij wysyłać raporty
 	raport_timer_.expires_from_now(
-		boost::posix_time::seconds(1)
+		boost::posix_time::milliseconds(raport_timer_period_)
 	);
 
 	raport_timer_.async_wait(
@@ -565,13 +580,54 @@ void server::run_raport_timer()
 	);
 }
 
+
+//===========================================================================//
+//                                                                           //
+// Zegarek odmierzający czas od otrzymania                                   //           
+// ostatniego dgramu konkretnego klienta po UDP.                             //
+//                                                                           //
+//===========================================================================//
+void server::run_udp_dgram_timer(
+	std::shared_ptr<boost::asio::ip::udp::endpoint> client_endpt)
+{
+	//std::cerr << "Jestem w tym zegarku\n";
+	const size_t clientid = client_map_[*client_endpt];
+	auto it = udp_dgram_timers_.find(clientid);
+	if (it != udp_dgram_timers_.end()) {
+		it->second->expires_from_now(
+			boost::posix_time::milliseconds(udp_dgram_timers_period_)
+		);
+
+		it->second->async_wait(
+			[this, clientid, client_endpt](boost::system::error_code error) {
+				if (error == boost::asio::error::operation_aborted) {
+					// Jeżeli otrzymaliśmy komunikat KEEPALIVE
+					// w przeciągu #udp_dgram_timers_period_ milisekund,
+					// to wszystko jest OK i rozpoczynamy mierzyć czas od początku.
+					run_udp_dgram_timer(client_endpt);
+				} else {
+					// W.p.p, gdy oczekujemy na odpowiedź zbyt długo:
+					// -> zwolnij zasoby klienta przekazywane po UDP
+					// -> nie przerywaj połączenia po TCP(same raporty).
+					std::cerr << "Usuwam zasoby nadane po UDP przez klienta: " 
+					<< clientid << ".\n";
+					free_resources(clientid);
+				}
+			}
+		);
+	}
+}
+
+
 void server::free_resources(const size_t clientid)
 {
-	const uint32_t clid = static_cast<uint32_t>(clientid);
+	const size_t clid = clientid;
 	// Iterator wskazujący na parę <clientid, struktura dla klienta>.
 	auto it = client_data_map_.find(clid);
 	// Usuń krotkę <client_udp_endpoint, client_id>
 	client_map_.erase(it->second->udp_endpoint_);
 	// Usuń obiekt wskazywany przez iterator
 	client_data_map_.erase(it);
+	// Usuń zegarek 'od dgramów' dla konkretnego klienta.
+	udp_dgram_timers_.erase(clientid);
 }

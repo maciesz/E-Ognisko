@@ -20,7 +20,7 @@ BOOST_LIBS=-lboost_system -lboost_program_options
 BIN_DIRECTORY=bin
 BUILD_BIN_DIRECTORY:=$(shell mkdir -p $(BIN_DIRECTORY))
 
-.PHONY: all
+.PHONY: all clean cleanest
 
 all: $(SERVER) $(CLIENT)
 
@@ -34,5 +34,5 @@ clean:
 	rm -Rf $(SERVER) $(CLIENT)
 	find . -name "*.o" -type f -delete
 
-cleanest:
+cleanest: clean
 	rm -Rf $(BIN_DIRECTORY)

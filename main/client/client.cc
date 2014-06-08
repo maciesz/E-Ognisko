@@ -106,7 +106,7 @@ void client::do_async_tcp_connect()
 void client::monitor_connection()
 {
 	connection_timer_.expires_from_now(
-		boost::posix_time::milliseconds(1000)
+		boost::posix_time::milliseconds(connection_period_)
 	);
 
 	connection_timer_.async_wait(
@@ -132,7 +132,7 @@ void client::do_read_header()
 			if (!error) {
 				// Zacznij odmierzać czas, 
 				// w którym musisz otrzymać > 1 komunikat od serwera. 
-				monitor_connection();
+				// monitor_connection();
 				std::string header;
 				std::istream is(&raport_buffer_);
 				std::getline(is, header);
@@ -286,6 +286,8 @@ void client::do_send_clientid_datagram()
 		[this, header_s] (boost::system::error_code error, size_t bytes_transferred) {
 
 			if (!error) {
+				// Ponieważ jesteśmy podłączeni, to zacznij wysyłać KEEPALIVE'y.
+				// do_send_keepalive_dgram();
 				do_handle_udp_request();
 			} else {
 				// Jeśli nie wypaliło to:
@@ -296,8 +298,6 @@ void client::do_send_clientid_datagram()
 			}
 		}
 	);
-	// Ponieważ jesteśmy podłączeni, to zacznij wysyłać KEEPALIVE'y.
-	do_send_keepalive_dgram();
 }
 
 void client::do_send_keepalive_dgram()
@@ -343,7 +343,6 @@ void client::do_send_keepalive_dgram()
 				// połączyć się z serwerem po TCP.
 				std::cerr << "Do send keepalive: " << error << "\n";
 				//do_tcp_reconnect();
-				monitor_connection();
 			}
 		}
 	);
@@ -417,6 +416,7 @@ void client::do_manage_msg(base_header* header, std::string& body)
 {	
 	const std::string header_name = header->_header_name;
 	if (header_name == DATA) {
+		//monitor_connection();
 		std::shared_ptr<data_header> d_header(
 			dynamic_cast<data_header*>(header)
 		);

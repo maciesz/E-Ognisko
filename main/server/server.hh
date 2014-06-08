@@ -111,6 +111,8 @@ private:
 	std::string raport_;
 	/// Zegarek na raporty.
 	boost::asio::deadline_timer raport_timer_;
+	/// Okres wywoływania zegarka raportowego.
+	const size_t raport_timer_period_;
 
 
 	//=======================================================================//
@@ -141,6 +143,9 @@ private:
 	/// Prześlij potwierdzenie konkretnemu klientowi.
 	void do_send_ack_datagram(const size_t ack, const size_t free_space,
 		boost::asio::ip::udp::endpoint remote_endpoint);
+	/// Odpal zegarek na datagramy od konkretnego klienta.
+	void run_udp_dgram_timer(
+		std::shared_ptr<boost::asio::ip::udp::endpoint> client_endpt);
 
 	//=======================================================================//
 	// Zmienne.                                                              //
@@ -172,6 +177,9 @@ private:
 	header_factory factory_;
 	/// Bufor serwera przechowujący zmiksowane dane.
 	char* write_buf_;
+	/// Okres wywoływania zegarka odmierzającego czas
+	/// od ostatniego dgramu nadanego przez konkretnego klienta.
+	const size_t udp_dgram_timers_period_;
 
 	//=======================================================================//
 	// Mapy.                                                                 //
@@ -192,6 +200,9 @@ private:
 	//    + aktualny rozmiar kolejki
 	// -> listę ostatnich datagramów przesłanych przez klienta
 	std::map<size_t, client_data*> client_data_map_;
-	/// Mapa zegark
+	/// Mapa zegarków dla dgramów przychodzących po UDP.
+	// [klucz]: identyfikator klienta
+	// [wartość]: zegarek odmierzający czas od ostatnio nadanego dgramu.
+	std::map<size_t, boost::asio::deadline_timer*> udp_dgram_timers_;
 };
 #endif
