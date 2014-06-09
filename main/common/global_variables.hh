@@ -18,7 +18,7 @@ const size_t FIFO_HIGH_WATERMARK = 10560;
 /// Rozmiar bufora pakietów wychodzących(w datagramach)
 const size_t BUF_LEN = 10;
 /// Rozmiar bufora danych z wejścia u klienta(w bajtach)
-const size_t CLIENT_BUFFER_LEN = 10560;//SHRT_MAX;
+const size_t CLIENT_BUFFER_LEN = USHRT_MAX;
 /// Ograniczenie na limit retransmisji
 const size_t RETRANSMIT_LIMIT = 10;
 /// Stała wpływająca na długość wiadomości z miksera

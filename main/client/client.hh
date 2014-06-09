@@ -66,6 +66,8 @@ private:
 	const size_t reconnect_period_;
 	/// Zegarek do ponownego łączenia z serwerem
 	boost::asio::deadline_timer reconnect_timer_;
+	/// Pierwszy komunikat data.
+	bool first_data_dgram_to_be_received;
 
 	//=======================================================================//
 	// Parametry serwera.                                                    //

@@ -40,7 +40,7 @@ server::server(
 		mixer_timer_(io_service_, 
 			boost::posix_time::milliseconds(tx_interval_)),
 		factory_(),
-		write_buf_(new char[CLIENT_BUFFER_LEN]),
+		write_buf_(new char[fifo_size_]),
 		udp_dgram_timers_period_(1000)
 {	
 	//=======================================================================//
@@ -100,7 +100,7 @@ server::~server()
 void server::do_receive()
 {
 	udp_socket_.async_receive_from(
-		boost::asio::buffer(read_buf_, CLIENT_BUFFER_LEN),
+		boost::asio::buffer(read_buf_, fifo_size_),
 		sender_endpoint_,
 		[this](boost::system::error_code error, size_t bytes_transferred) {
 			if (!error) {
@@ -519,7 +519,7 @@ void server::mixer()
 	// Rzutuj bufor wyjściowy na void*:
 	void* output_buf = static_cast<void*>(write_buf_);
 	// Wyznacz rozmiar wektora w bajtach:
-	size_t output_size = (size_t)CLIENT_BUFFER_LEN;
+	size_t output_size = fifo_size_;
 	// Podaj częstotliwość wywołania mixera po skonwertowaniu na pożądany typ:
 	unsigned long tx_interval_ms = static_cast<unsigned long>(tx_interval_);
 	// Poproś miksera, aby wymieszał co trzeba:
@@ -576,7 +576,7 @@ void server::mixer()
 		client_data_map_[clientid]->add_to_dgrams_list(datagram, cnr);
 		// Prześlij datagram klientowi.
 		udp_socket_.async_send_to(
-			boost::asio::buffer(datagram, CLIENT_BUFFER_LEN), 
+			boost::asio::buffer(datagram, fifo_size_), 
 			receiver_endpoint,
 			[this](boost::system::error_code error, size_t bytes_transferred) {
 				if (!error) {

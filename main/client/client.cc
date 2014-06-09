@@ -13,6 +13,7 @@ client::client(
 	  	reconnect_period_(reconnect_period),
 		reconnect_timer_(io_service, 
 			boost::posix_time::milliseconds(reconnect_period_)),
+		first_data_dgram_to_be_received(true),
 		port_(port),
 	  	address_(host),
 		//=========================================//
@@ -115,7 +116,7 @@ void client::monitor_connection()
 		[this](boost::system::error_code error) {
 			// Niezależnie od rezultatu ponów połączenie.
 			if (error == boost::asio::error::operation_aborted) {
-				monitor_connection();
+				//monitor_connection();
 			} else {
 
 				#ifdef DEBUG
@@ -138,7 +139,7 @@ void client::do_read_tcp_message()
 			if (!error) {
 				// Zacznij odmierzać czas, 
 				// w którym musisz otrzymać > 1 komunikat od serwera. 
-				// monitor_connection();
+				//monitor_connection();
 				std::string header;
 				std::istream is(&raport_buffer_);
 				std::getline(is, header);
@@ -193,8 +194,7 @@ void client::do_write_to_STDOUT()
 
 void client::do_tcp_reconnect()
 {
-	// Ustaw długość kolejki na niezainicjalizowaną.
-	win_ = CLIENT_BUFFER_LEN;
+	first_data_dgram_to_be_received = true;
 	// Zwlonij zasoby.
 	udp_socket_.close();
 	// Ustal czas, po upływie którego zostanie wywołany TCP reconnect.
@@ -383,7 +383,7 @@ void client::do_handle_udp_request()
 
 				#ifdef DEBUG
 				std::cerr << "[Error code] Do handle udp request: " 
-				<< e.what() << "\n";
+				<< error << "\n";
 				#endif
 
 				do_handle_udp_request();
@@ -402,10 +402,8 @@ void client::do_write_mixed_data_to_stdout(std::shared_ptr<std::string> data)
 			boost::system::error_code error, size_t bytes_transferred) {
 			// Niezależnie od powodzenia operacji rozpocznij:
 			// -> czytanie z STDIN,
-			// -> obsługę datagramów po UDP.
 			if (!error) {
 				do_read_from_stdin();
-				do_handle_udp_request();
 			} else {
 				#ifdef DEBUG
 				std::cerr << "[Error code] Write mixed data to stdout: " 
@@ -420,7 +418,7 @@ void client::do_manage_msg(base_header* header, std::string& body)
 {	
 	const std::string header_name = header->_header_name;
 	if (header_name == DATA) {
-		//monitor_connection();
+		monitor_connection();
 		std::shared_ptr<data_header> d_header(
 			dynamic_cast<data_header*>(header)
 		);
@@ -431,71 +429,67 @@ void client::do_manage_msg(base_header* header, std::string& body)
 		std::cerr << "Numer datagramu: " << d_header->_nr << "\n";
 		std::cerr << "Oczekiwany pakiet ode mnie: " << d_header->_ack << "\n";
 		std::cerr << "Rozmiar kolejki(win): " << d_header->_win << "\n";
-		std::cerr << "Message: " << body << "\n"; 
+		//std::cerr << "Message: " << body << "\n"; 
 		std::cerr << "\n";
 		std::cerr << "Aktualnie ostatnio wysłany pakiet: " << actual_dgram_nr_ << "\n";
 		std::cerr << "--------------------------------------------------------\n";
-		std::cerr << "Wiadomość: " << body << "\n";
 		#endif
 
 		nr_max_seen_ = d_header->_nr;
+		win_ = d_header->_win;
 		// Jeżeli otrzymaliśmy dwukrotnie datagram DATA
 		// bez powtórzenia ostatnio wysłanego datagramu,
 		// to ponawiamy wysyłanie ostatniego datagramu.
-		std::shared_ptr<std::string> data_ptr(new std::string(body));
-			
+		std::shared_ptr<std::string> data_ptr(new std::string(body));			
 		if (last_header_title_ == DATA) {
 			// Wyślij ostatni datagram UPLOAD raz jeszcze.
 			if (!last_datagram_.empty()) {
-				do_resend_last_datagram();				
+				do_resend_last_datagram();
 			}
-		}
-		// Jeżeli jest to pierwsza wiadomość od początku znajomości po UDP.
-		if (win_ == CLIENT_BUFFER_LEN) {
-			// Ustaw parametry klienta.
-			win_ = d_header->_win + 1;
-			nr_expected_ = d_header->_nr + 1;
-			actual_dgram_nr_ = d_header->_ack;
-			last_header_title_ = d_header->_header_name;
-			last_datagram_ = "CLIENT " + std::to_string(clientid_);
-			// Wypisz ,,body'' wiadomości na STDOUT.
-			do_write_mixed_data_to_stdout(data_ptr);
-		}
-		// Jeżeli klient otrzymał datagram z numerem większym
-		// niż kolejny oczekiwany:
-		else if (d_header->_nr > nr_expected_) {
-			if (nr_expected_ >= d_header->_nr - retransmit_limit_) {
-				// Porzuć ten datagram i zaktualizuj wartość nr_expected_.
-				do_retransmit(nr_expected_);
+		} else {
+
+			last_header_title_ = header_name;
+			// Jeżeli jest to pierwsza wiadomość od początku znajomości po UDP.
+			if (first_data_dgram_to_be_received) {
+				// Ustaw parametry klienta.
 				nr_expected_ = d_header->_nr + 1;
-				win_ = d_header->_win;
-				//do_write_mixed_data_to_stdout(data_ptr);
-			}
-			// W przeciwnym przypadku przyjmij datagram oraz uznaj,
-			// że poprzednich nie uda się już przeczytać.
-			else {
-				nr_expected_ = d_header->_nr + 1;
-				win_ = d_header->_win;
-				// Odczytaj maksymalnie win_ bajtów danych z STDIN
+				actual_dgram_nr_ = d_header->_ack;
+				last_header_title_ = CLIENT;
+				last_datagram_ = "CLIENT " + std::to_string(clientid_);
+				first_data_dgram_to_be_received = false;
+				// Wypisz ,,body'' wiadomości na STDOUT.
 				do_write_mixed_data_to_stdout(data_ptr);
 			}
-		} else if (d_header->_nr < nr_expected_) {
-			// Zwyczajnie porzuć ten datagram i czekaj na nowy.
-			do_handle_udp_request();
-		}
-		// Jeżeli jest to któryś z rzędu komunikat od serwera typu DATA
-		// oraz przekazany nr_datagramu jest zgodny z numerem oczekiwanym.
-		else {
-			// Zaktualizuj:
-			// -> liczbę dostępnych bajtów w kolejce:
-			win_ = d_header->_win;
-			// -> numer kolejnego datagramu:
-			nr_expected_++;
-			// -> pozostałe:
-			last_header_title_ = d_header->_header_name;
-			//last_datagram_ = last_header_title_ + body;
-			// Wypisz rezultat na STDOUT.
-			do_write_mixed_data_to_stdout(data_ptr);
+			// Jeżeli klient otrzymał datagram z numerem większym
+			// niż kolejny oczekiwany:
+			else if (d_header->_nr > nr_expected_) {
+				if ((nr_expected_ >= d_header->_nr - retransmit_limit_)
+					&& d_header->_nr > nr_max_seen_) {
+					// Porzuć ten datagram i zaktualizuj wartość nr_expected_.
+					nr_expected_ = d_header->_nr + 1;
+					do_retransmit(nr_expected_);
+					//do_write_mixed_data_to_stdout(data_ptr);
+				}
+				// W przeciwnym przypadku przyjmij datagram oraz uznaj,
+				// że poprzednich nie uda się już przeczytać.
+				else {
+					nr_expected_ = d_header->_nr + 1;
+					// Odczytaj maksymalnie win_ bajtów danych z STDIN
+					do_write_mixed_data_to_stdout(data_ptr);
+				}
+			} else if (d_header->_nr < nr_expected_) {
+				// Zwyczajnie porzuć ten datagram i czekaj na nowy.
+				do_handle_udp_request();
+			}
+			// Jeżeli jest to któryś z rzędu komunikat od serwera typu DATA
+			// oraz przekazany nr_datagramu jest zgodny z numerem oczekiwanym.
+			else {
+				// Zaktualizuj:
+				// -> numer kolejnego datagramu:
+				nr_expected_ = d_header->_nr + 1;
+				// Wypisz rezultat na STDOUT.
+				do_write_mixed_data_to_stdout(data_ptr);
+			}
 		}
 	} else if (header_name == ACK) {
 		std::shared_ptr<ack_header> a_header(
@@ -512,19 +506,19 @@ void client::do_manage_msg(base_header* header, std::string& body)
 		std::cerr << "-----------------------------------------------\n";
 		#endif
 
+
+		// Zaktualizuj:
+		// -> tytuł ostatniego nagłówka:
+		last_header_title_ = header_name;
+		// -> ilość dostępnych bajtów w kolejce:
+		win_ = a_header->_win;
 		// Jeżeli jest to pierwsza informacja zwrotna
 		// od serwera po UDP w nowym połączeniu.
-		if (win_ == CLIENT_BUFFER_LEN) {
+		if (first_data_dgram_to_be_received) {
+			first_data_dgram_to_be_received = false;
 			do_send_clientid_datagram();
-			win_ = a_header->_win;
 		} else {
-			// Zaktualizuj:
-			// -> tytuł ostatniego nagłówka:
-			last_header_title_ = ACK;
-			// -> ilość dostępnych bajtów w kolejce:
-			win_ = a_header->_win;
 			do_handle_udp_request();
-			// Wczytaj nie więcej niż _win bajtów danych z STDIN.
 		}
 	}
 }
@@ -593,7 +587,7 @@ void client::do_read_from_stdin()
 void client::do_write_msg_to_udp_socket(std::shared_ptr<std::string> message)
 {
 	udp_socket_.async_send(
-		boost::asio::buffer(*message, CLIENT_BUFFER_LEN),
+		boost::asio::buffer(*message, message->size()),
 		[this, message](
 			boost::system::error_code error, 
 			size_t bytes_transferred

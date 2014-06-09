@@ -46,10 +46,10 @@ void client_data::actualize_content_after_mixery(
 	queue_size_ = queue_.size();
 
 	#ifdef AFTER_MIXERY_DEBUG
-	std::cerr << "Wolne bajty po updacie: " << max_queue_length_ - queue_size_ << ".\n";
+	std::cerr << "Wolne bajty po updacie: " << (max_queue_length_ - queue_size_) * 2<< ".\n";
 	std::cerr << "================================================================\n";
 	std::cerr << "================================================================\n";
-	std::cerr << "-> po mixowaniu: " << max_queue_length_ - queue_size_ << "\n";
+	std::cerr << "-> po mixowaniu: " << (max_queue_length_ - queue_size_) * 2<< "\n";
 	#endif
 	// Zaktualizuj minimalną ilość bytów w kolejce:
 	min_bytes_ = std::min(min_bytes_, queue_size_ * 2);
@@ -62,7 +62,7 @@ void client_data::actualize_content_after_upload(
 	std::cerr << "----------------------------------------------------------------\n";
 	std::cerr << "Aktualizacja nr: " << expected_client_datagram_nr_ + 1 << " raz.\n";
 	std::cerr << "Rozmiar danych: " << upload_data.size() << ".\n";
-	std::cerr << "Wolne bajty przed uploadem: " << max_queue_length_ - queue_size_ << ".\n";
+	std::cerr << "Wolne bajty przed uploadem: " << (max_queue_length_ - queue_size_) * 2 << ".\n";
 	#endif
 
 	const size_t upload_data_size = upload_data.size();
@@ -88,7 +88,7 @@ void client_data::actualize_content_after_upload(
 	queue_size_ = queue_.size();
 
 	#ifdef AFTER_UPLOAD_DEBUG
-	std::cerr << "Wolne bajty po uploadzie: " << max_queue_length_ - queue_size_ << ".\n";
+	std::cerr << "Wolne bajty po uploadzie: " << (max_queue_length_ - queue_size_) * 2 << ".\n";
 	std::cerr << "----------------------------------------------------------------\n";
 	#endif
 	
@@ -105,9 +105,9 @@ std::string client_data::get_statistics()
 	std::string statistics(std::string(
 		endpoint_ /* Endpoint klienta */ +
 		" FIFO: " +
-		boost::lexical_cast<std::string>(queue_size_) /* Rozmiar kolejki */ +
+		boost::lexical_cast<std::string>(queue_size_ * 2)/* Rozmiar kolejki */ +
 		"/" +
-		boost::lexical_cast<std::string>(max_queue_length_) /* Max rozmiar */ +
+		boost::lexical_cast<std::string>(max_queue_length_ * 2) /* Max rozmiar */ +
 		" (min. " +
 		boost::lexical_cast<std::string>(min_bytes_) +
 		", max. " +
