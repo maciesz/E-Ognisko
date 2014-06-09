@@ -61,8 +61,6 @@ void connection::do_write_raport(const std::string& raport)
 		[this, self](boost::system::error_code error, std::size_t) {
 			if (error) {
 				connection_manager_.stop(clientid_, shared_from_this());
-			} else {
-				std::cerr << "Przesłałem RAPORT.\n";
 			}
 		}
 	);

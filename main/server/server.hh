@@ -45,8 +45,9 @@
 //#define RECEIVE_DGRAM_DEBUG
 //#define MSG_MANAGER_DEBUG
 //#define RETRANSMIT_DEBUG
-#define ACK_SEND_DEBUG
+//#define ACK_SEND_DEBUG
 //#define MIXER_DEBUG
+
 class connection_manager;
 
 class server

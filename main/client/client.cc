@@ -83,7 +83,11 @@ void client::do_async_tcp_connect()
 			if (!error) {
 				do_read_tcp_message();
 			} else {
-				std::cerr << "Handle TCP connection..\n";
+
+				#ifdef DEBUG
+				std::cerr << "Handling TCP connection..\n";
+				#endif
+
 				// Przystąp do wysyłania keepalive'ów:
 				reconnect_timer_.expires_at(
 					reconnect_timer_.expires_at() +
@@ -113,7 +117,11 @@ void client::monitor_connection()
 			if (error == boost::asio::error::operation_aborted) {
 				monitor_connection();
 			} else {
+
+				#ifdef DEBUG
 				std::cerr << "Connection broken.." << error << " \n";
+				#endif
+
 				do_tcp_reconnect();
 			}
 		}
@@ -149,8 +157,11 @@ void client::do_read_tcp_message()
 						do_async_udp_connect();
 						do_read_tcp_message();
 					} catch (invalid_header_exception& ex) {
-						std::cerr << "Invalid header format: " 
-						<< ex.what() << "\n";
+
+						#ifdef DEBUG
+						std::cerr << "[Invalid header format]: " << ex.what() << "\n";
+						#endif
+
 					}
 				} else {
 					do_write_to_STDOUT();
@@ -161,7 +172,10 @@ void client::do_read_tcp_message()
 				// Nastąpiło przerwanie połączenia po TCP.
 				// Próba wznowienia połączenia,
 				// zostanie podjęta przez connection_timer.
-				std::cerr << "Do read header: " << error << "\n";
+
+				#ifdef DEBUG
+				std::cerr << "[Error code] Do read header: " << error << "\n";
+				#endif
 			}
 		}
 	);
@@ -170,7 +184,7 @@ void client::do_read_tcp_message()
 void client::do_write_to_STDOUT()
 {
 	// Wypisz raport na standardowy strumień błędów.
-	std::cerr << boost::asio::buffer_cast<const char*>(raport_buffer_.data());
+	std::cerr << "\n" << boost::asio::buffer_cast<const char*>(raport_buffer_.data());
 	// Zjedz pierwsze wszystkie elementy z bufora.
 	raport_buffer_.consume(raport_buffer_.size());
 	// Przejdź do czytania nagłówków wiadomości przesyłanych po TCP.
@@ -227,7 +241,11 @@ void client::do_async_udp_connect()
 			} else {
 				// Jeżeli nie udało się połączyć po UDP, 
 				// to się nie poddajemy, tylko próbujemy usilnie się połączyć.
-				std::cerr << "Do async udp connect: " << error << "\n";
+
+				#ifdef DEBUG
+				std::cerr << "[Error code] Do async udp connect: " << error << "\n";
+				#endif
+
 				do_async_udp_connect(); // po UDP łączymy się od razu.
 			}
 		}
@@ -254,7 +272,11 @@ void client::do_send_clientid_datagram()
 				// Jeśli nie wypaliło to:
 				// -> zwróć stosowną informację o błędzie,
 				// -> spróbuj wysłać komunikat ponownie
-				std::cerr << "Do send clientid datagram: " << error << "\n";
+
+				#ifdef DEBUG
+				std::cerr << "[Error code] Do send clientid datagram: " << error << "\n";
+				#endif
+
 				do_send_clientid_datagram();
 			}
 		}
@@ -291,7 +313,11 @@ void client::do_send_keepalive_dgram()
 							// Jeśli nie udało się wysłać keepalive'a to znaczy,
 							// że połączenie zostało przerwane i należy ponownie
 							// połączyć się z serwerem po TCP.
-							std::cerr << "Do send keepalive: " << error << "\n";
+
+							#ifdef DEBUG
+							std::cerr << "[Error code] Do send keepalive: " << error << "\n";
+							#endif
+
 						}
 					}
 				);
@@ -303,7 +329,11 @@ void client::do_send_keepalive_dgram()
 				// jakiś Arab wysadził linię UDP pomiędzy klientem a serwerem.
 				//
 				// Niezależnie od przyczyny connection_timer czuwa nad tym.
-				std::cerr << "Send keepalive msg[Do send!]: " << error << "\n";
+
+				#ifdef DEBUG
+				std::cerr << "[Error code] Send keepalive msg: " << error << "\n";
+				#endif
+
 			}
 		}
 	);
@@ -340,18 +370,22 @@ void client::do_handle_udp_request()
 						);
 					do_manage_msg(header, msg_structure._body);
 				} catch (invalid_header_exception& e) {
+
 					#ifdef DEBUG
 					std::cerr << "[Invalid header exception] " 
 					<< "Do handle udp request: " << e.what() << "\n";
 					#endif
+
 				}
 			} else {
 				// Jeżeli nie udało się odebrać danych z gniazda, 
 				// to wróć do nasłuchiwania po UDP.;
+
 				#ifdef DEBUG
-					std::cerr << "[Error code] Do handle udp request: " 
-					<< e.what() << "\n";
+				std::cerr << "[Error code] Do handle udp request: " 
+				<< e.what() << "\n";
 				#endif
+
 				do_handle_udp_request();
 			}
 		}
@@ -567,6 +601,7 @@ void client::do_write_msg_to_udp_socket(std::shared_ptr<std::string> message)
 			if (error) {
 				// Jeżeli zapisanie do socketa się nie powiodło,
 				// to spróbuj raz jeszcze.
+
 				#ifdef DEBUG
 				std::cerr << "[Error code] Do write msg to udp socket: " 
 				<< error << "\n";
@@ -599,9 +634,11 @@ void client::do_resend_last_datagram()
 			size_t bytes_transferred
 		) {
 			if (error) {
+
 				#ifdef DEBUG
-				std::cerr << "Do resend last datagram..\n";
+				std::cerr << "[Error code] Do resend last datagram..\n";
 				#endif
+
 			}
 			// Niezależnie od pomyślności ponownego przesłania wiadomości:
 			// -> Jednocześnie czekawszy na wiadomość od serwera.
