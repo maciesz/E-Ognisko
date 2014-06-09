@@ -54,39 +54,15 @@ void connection::do_write_raport(const std::string& raport)
 	auto self(shared_from_this());
 	// Wyznacz długość raportu:
 	const size_t raport_size = raport.size();
-	// Oblicz długość napisu przedstawiającego długość raportu:
-	const size_t raport_length = get_length(raport_size);
-	// Wyznacz długość raportu:
-	size_t msg_size = 
-		raport_size /* Rozmiar treści raportu bez nagłówka */ +
-		std::to_string(raport_size).size() +
-		1 /* Znak nowej linii po długości wiadomości */;
-	// Oblicz długość napisu przedstawiającego długość raportu:
-	size_t msg_length = get_length(msg_size);
-	// Porównaj obie długości napisów.
-	// Mogą się różnić maksymalnie o 1 dlatego, 
-	// że liczba opisująca długość tekstu będzie zawsze niedłuższa 
-	// od tekstu opisywanego.
-	if (msg_length > raport_length) {
-		msg_size++;
-	}
-
-	std::string msg(
-		std::to_string(msg_size) /* Rozmiar wiadomości wraz z nagłówkiem */ +
-		'\n' /* Znak nowej linii następujący po długości raportu */ +
-		raport
-	);
-
-	//std::cerr << "Wysyłam klientowi wiadomość: " << msg << "\n";// o rozmiarze: " << header.size() << "\n";
 	boost::asio::async_write(
 		socket_,
-		boost::asio::buffer(std::move(msg)),
-		boost::asio::transfer_at_least(msg_size),
+		boost::asio::buffer(raport),//std::move(msg)),
+		boost::asio::transfer_at_least(raport_size),
 		[this, self](boost::system::error_code error, std::size_t) {
 			if (error) {
-				//std::cerr << "Nastąpił błąd w kliencie: " << clientid_ << "\n";
-				//std::cerr << "----------------------------------------\n";
 				connection_manager_.stop(clientid_, shared_from_this());
+			} else {
+				std::cerr << "Przesłałem RAPORT.\n";
 			}
 		}
 	);
@@ -95,15 +71,4 @@ void connection::do_write_raport(const std::string& raport)
 size_t connection::get_clientid()
 {
 	return clientid_;
-}
-
-size_t connection::get_length(size_t body)
-{
-	size_t counter = 0;
-	while (body) {
-		++counter;
-		body /= 10;
-	}
-
-	return counter;
 }

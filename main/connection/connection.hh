@@ -43,8 +43,6 @@ private:
 	void do_write_clientid();
 	/// Wykonuje asynchroniczną operację przekazania klientowi raportu.
 	void do_write_raport(const std::string&);
-	/// Zwraca długość napisu dla podanej długości tekstu.
-	size_t get_length(size_t length);
 	/// Manager połączeń po TCP.
 	connection_manager& connection_manager_;
 	/// Identyfikator klienta na tym połączeniu.

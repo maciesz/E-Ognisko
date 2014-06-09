@@ -24,30 +24,33 @@ client_data::client_data(
 
 client_data::~client_data()
 {
-	std::cerr << "Czyszczę kolejkę w client_data\n";
 	queue_.clear();
 }
 
 void client_data::actualize_content_after_mixery(
 	size_t bytes_transferred)
 {
-	/*std::cerr << "================================================================\n";
+	#ifdef AFTER_MIXERY_DEBUG
+	std::cerr << "================================================================\n";
 	std::cerr << "================================================================\n";
 	std::cerr << "Akutalizacja po miksowaniu.\n";
 	std::cerr << "Przetworzyłem: " << bytes_transferred << " bajtów.\n";
 	std::cerr << "Wolne bajty przed updatem: " << max_queue_length_ - queue_size_ << ".\n";
 	std::cerr << "Wolne miejsce w kolejce: ";
-	std::cerr << "-> przed mixowaniem: " << max_queue_length_ - queue_size_ << "\n";*/
+	std::cerr << "-> przed mixowaniem: " << max_queue_length_ - queue_size_ << "\n";
+	#endif
 	// Usuń shift pierwszych elementów z kolejki:
 	size_t shift = bytes_transferred / 2;
 	pop_front_sequence(shift);
 	// Zaktualizuj rozmiar kolejki:
 	queue_size_ = queue_.size();
-	/*std::cerr << "Wolne bajty po updacie: " << max_queue_length_ - queue_size_ << ".\n";
+
+	#ifdef AFTER_MIXERY_DEBUG
+	std::cerr << "Wolne bajty po updacie: " << max_queue_length_ - queue_size_ << ".\n";
 	std::cerr << "================================================================\n";
 	std::cerr << "================================================================\n";
 	std::cerr << "-> po mixowaniu: " << max_queue_length_ - queue_size_ << "\n";
-	std::cerr << "-----------------------------------------------\n";*/
+	#endif
 	// Zaktualizuj minimalną ilość bytów w kolejce:
 	min_bytes_ = std::min(min_bytes_, queue_size_ * 2);
 }
@@ -55,26 +58,40 @@ void client_data::actualize_content_after_mixery(
 void client_data::actualize_content_after_upload(
 	std::vector<std::int16_t>& upload_data)
 {
-	/*std::cerr << "----------------------------------------------------------------\n";
+	#ifdef AFTER_UPLOAD_DEBUG
+	std::cerr << "----------------------------------------------------------------\n";
 	std::cerr << "Aktualizacja nr: " << expected_client_datagram_nr_ + 1 << " raz.\n";
 	std::cerr << "Rozmiar danych: " << upload_data.size() << ".\n";
-	std::cerr << "Wolne bajty przed uploadem: " << max_queue_length_ - queue_size_ << ".\n";*/
+	std::cerr << "Wolne bajty przed uploadem: " << max_queue_length_ - queue_size_ << ".\n";
+	#endif
+
 	const size_t upload_data_size = upload_data.size();
 	// Jeżeli po złączeniu kolejek, długość tej nowopowstałej
 	// będzie dłuższa od dopuszczalnej przyjętej w konstruktorze to:
 	if (queue_size_ + upload_data_size > max_queue_length_) {
 		// -> usuń nadmiar z początku kolejki:
-		//std::cerr << "Queue_size: " << queue_size_ << "\n";
+		#ifdef AFTER_UPLOAD_DEBUG
+		std::cerr << "Queue_size: " << queue_size_ << "\n";
+		#endif
+
 		size_t shift = queue_size_ + upload_data_size - max_queue_length_;
-		//std::cerr << "Shift: " << shift << "\n";
+
+		#ifdef AFTER_UPLOAD_DEBUG
+		std::cerr << "Shift: " << shift << "\n";
+		#endif
+
 		pop_front_sequence(shift);
 	}
 	// Niezależnie od przypadku zmerguj queue_ z kolejką z UPLOAD'a:
 	queue_.insert(queue_.end(), upload_data.begin(), upload_data.end());
 	// Zaktualizuj rozmiar kolejki:
 	queue_size_ = queue_.size();
-	/*std::cerr << "Wolne bajty po uploadzie: " << max_queue_length_ - queue_size_ << ".\n";
-	std::cerr << "----------------------------------------------------------------\n";*/
+
+	#ifdef AFTER_UPLOAD_DEBUG
+	std::cerr << "Wolne bajty po uploadzie: " << max_queue_length_ - queue_size_ << ".\n";
+	std::cerr << "----------------------------------------------------------------\n";
+	#endif
+	
 	// Zaktualizuj maksymalną liczbę bajtów w kolejce:
 	max_bytes_ = std::max(max_bytes_, queue_size_ * 2);
 	// Zaktualizuj nr kolejnego oczekiwanego datagramu ze strony klienta.

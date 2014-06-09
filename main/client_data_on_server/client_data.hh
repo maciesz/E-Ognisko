@@ -13,6 +13,8 @@
 #include "../common/queue_state.hh"
 #include "../common/structures.hh"
 
+//#define AFTER_MIXERY_DEBUG
+//#define AFTER_UPLOAD_DEBUG
 class client_data
 {
 public:

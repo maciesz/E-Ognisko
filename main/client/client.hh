@@ -31,6 +31,9 @@
 // 4) Wyjątki:
 #include "../exceptions/invalid_header_exception.hh"
 
+//#define DEBUG
+//#define DATA_INFO
+//#define ACK_INFO
 
 class client
 {
@@ -90,13 +93,11 @@ private:
 	/// Połącz się z konkretnym serwerem po TCP.
 	void do_async_tcp_connect();
 	/// Przeczytaj nagłówek wiadomości.
-	void do_read_header();
+	void do_read_tcp_message();
 	/// Przeczytaj ,,body'' wiadomości.
-	void do_read_body(const size_t bytes_to_be_transferred);
+	void do_read_body(/*const size_t bytes_to_be_transferred*/);
 	/// Wypisz wiadomość na standardowe wyjście.
 	void do_write_to_STDOUT();
-	/// Obsłuż po połączeniu.
-	void handle_after_connect(const boost::system::error_code&);
 	/// Ponów próbę półączenia się po TCP z serwerem.
 	void do_tcp_reconnect();
 

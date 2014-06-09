@@ -43,7 +43,6 @@ server::server(
 		write_buf_(new char[CLIENT_BUFFER_LEN]),
 		udp_dgram_timers_period_(1000)
 {	
-	//std::cout << "Jestem w konstruktorze!\n";
 	//=======================================================================//
 	// Rejestracja sygnałów.                                                 //
 	//=======================================================================//
@@ -71,7 +70,7 @@ server::server(
 	// Zacznij akceptować przychodzące połączenia TCP.
 	do_accept();
 	// Zacznij raportować.
-	//run_raport_timer();
+	run_raport_timer();
 
 	//=======================================================================//
 	// UDP.                                                                  //
@@ -117,12 +116,16 @@ void server::do_receive()
 					message_converter::divide_msg_into_sections(
 						whole_message, bytes_transferred
 					);
-				// Spróbuj wywnioskować rodzaj datagramu, po nagłówku.
-				/*std::cerr << "------------------------------------------------\n";
+
+				#ifdef RECEIVE_DGRAM_DEBUG
+				std::cerr << "------------------------------------------------\n";
 				std::cerr << "Dostałem wiadomość! Serwer.\n";
 				std::cerr << "whole msg: " << whole_message << "\n";
 				std::cerr << "header: " << msg_structure._header << "\n";
-				std::cerr << "------------------------------------------------\n";*/
+				std::cerr << "------------------------------------------------\n";
+				#endif
+
+				// Spróbuj wywnioskować rodzaj datagramu, po nagłówku.
 				try {
 					base_header* header = 
 						factory_.match_header(
@@ -133,10 +136,17 @@ void server::do_receive()
 					// Po udanej konwersji obsłuż akcję związaną z tym dgramem.
 					do_manage_msg(header, msg_structure._body);			
 				} catch (invalid_header_exception& ex) {
-					std::cerr << "Do receive: " << ex.what() << " \n";
+
+					#ifdef DEBUG
+					std::cerr << "[Invalid header exception] Do receive: " << ex.what() << " \n";
+					#endif
 				}
 			} else {
-				std::cerr << "Do receive: " << error << "\n";
+
+				#ifdef DEBUG
+				std::cerr << "[Error code] Do receive: " << error << "\n";
+				#endif
+
 				do_receive();
 			}
 		}
@@ -147,11 +157,14 @@ void server::do_manage_msg(base_header* header, std::string& body)
 {
 	// Zweryfikuj rodzaj komunikatu na podstawie nagłówka.
 	const std::string header_name = std::move(header->_header_name);
-	/*std::cerr << "-----------------------------------------\n";
+	
+	#ifdef MSG_MANAGER_DEBUG
+	std::cerr << "-----------------------------------------\n";
 	std::cerr << "Jestem w Managerze wiadomości.\n";
 	std::cerr << "Nagłówek: " << header_name << "\n";
 	std::cerr << "Body: " << body << "\n";
-	std::cerr << "-----------------------------------------\n";*/
+	std::cerr << "-----------------------------------------\n";
+	#endif
 	
 	// Skopiuj obiekt endpointa nadawcy.
 	boost::asio::ip::udp::endpoint remote_udp_endpoint(sender_endpoint_);
@@ -220,10 +233,15 @@ void server::do_manage_msg(base_header* header, std::string& body)
 		// spełniające kryterium wskazane przez klienta.
 		std::list<std::string> dgram_list = 
 			client_data_map_[client_id]->get_last_dgrams(retransmit_inf_nr);
-	/*	std::cerr << "--------------------------------------------------\n";
+
+		#ifdef RETRANSMIT_DEBUG
+		std::cerr << "--------------------------------------------------\n";
 		std::cerr << "Retransmisje\n";
 		std::cerr << "Rozmiar dgram_list: " << dgram_list.size() << "\n";
-		std::cerr << "\n";*/
+		std::cerr << "\n";
+		std::cerr << "--------------------------------------------------\n";
+		#endif
+
 		// Przejdź do transmitowania i jednocześnie w tryb nasłuchiwania.
 		//
 		// Retransmisja:
@@ -281,12 +299,15 @@ void server::do_manage_msg(base_header* header, std::string& body)
 void server::do_send_ack_datagram(const size_t ack, const size_t free_space,
 	boost::asio::ip::udp::endpoint remote_endpoint)
 {
-	/*std::cerr << "------------------------------------------\n";
+	#ifdef ACK_SEND_DEBUG
+	std::cerr << "------------------------------------------\n";
 	std::cerr << "Wysyłanie ACK\n";
 	std::cerr << "Adres: " << remote_endpoint << "\n";
 	std::cerr << "ack: " << ack << "\n";
 	std::cerr << "wolne miejsce w kolejce: " << free_space << "\n";
-	std::cerr << "------------------------------------------\n";*/
+	std::cerr << "------------------------------------------\n";
+	#endif
+
 	std::shared_ptr<std::string> ack_dgram(
 		new std::string(
 			"ACK " +
@@ -304,7 +325,11 @@ void server::do_send_ack_datagram(const size_t ack, const size_t free_space,
 			size_t bytes_transferred
 		) {
 			if (error) {
-				std::cerr << "Do send ack datagram: " << error << " \n";
+
+				#ifdef DEBUG
+				std::cerr << "{error code] Do send ack datagram: " << error << " \n";
+				#endif
+
 				// Jeżeli nie udało się przesłać potwierdzenia,
 				// to spróbuj jeszcze raz.
 				do_send_ack_datagram(ack, free_space, remote_endpoint);
@@ -319,10 +344,13 @@ void server::do_transmit_data(
 	std::shared_ptr<boost::asio::ip::udp::endpoint> remote_endpoint,
 	std::list<std::string>& dgram_list)
 {
-	/*std::cerr << "----------------------------------------------\n";
+	#ifdef RETRANSMIT_DEBUG
+	std::cerr << "----------------------------------------------\n";
 	std::cerr << "Transmisja danych\n";
 	std::cerr << "Adres: " << *remote_endpoint << "\n";
-	std::cerr << "----------------------------------------------\n";*/
+	std::cerr << "----------------------------------------------\n";
+	#endif
+
 	for (auto it = dgram_list.begin(); it != dgram_list.end(); ++it) {
 		std::shared_ptr<std::string> dgram(new std::string(*it));
 		udp_socket_.async_send_to(
@@ -333,7 +361,11 @@ void server::do_transmit_data(
 				size_t bytes_transferred
 			) {
 				if (error) {
-					std::cerr << "Do transmit data: " << error << "\n";
+
+					#ifdef DEBUG
+					std::cerr << "[Error code] Do transmit data: " << error << "\n";
+					#endif
+
 				}
 				do_receive();
 			}
@@ -409,7 +441,11 @@ void server::do_accept()
 					this
 				);
 			} else {
-				std::cerr << "Do async accept: " << error << "\n";
+
+				#ifdef DEBUG
+				std::cerr << "[Error code] Do async accept: " << error << "\n";
+				#endif
+
 			}
 			do_accept();
 		}
@@ -442,8 +478,11 @@ void server::send_raport()
 //===========================================================================//
 void server::mixer()
 {
-	/*std::cerr << "-------------------------------------------------\n";
-	std::cerr << "Jestem w mixerze.\n";*/
+	#ifdef MIXER_DEBUG
+	std::cerr << "-------------------------------------------------\n";
+	std::cerr << "Jestem w mixerze.\n";
+	#endif
+
 	// Skompletuj dane zanim zostaną one przekazane do mixera:
 	std::list<size_t> active_queue_clients_id;
 	size_t inputs_size = 0;
@@ -458,7 +497,11 @@ void server::mixer()
 			++inputs_size;
 		}
 	}
-	//std::cerr << "Mamy " << active_queue_clients_id.size() << " aktywnych kolejek\n";
+
+	#ifdef MIXER_DEBUG
+	std::cerr << "Mamy łącznie" << active_queue_clients_id.size() << " aktywnych kolejek\n";
+	#endif
+
 	// Zbuduj strukturę mixer_input*.
 	mixer_input* inputs = new mixer_input[inputs_size];
 	int next = 0;
@@ -499,14 +542,12 @@ void server::mixer()
 	}
 
 	std::string message(write_buf_, output_size);
-	//std::cerr << "--------------------------------------------------------\n";
-	/*
-	std::cerr << "-----------------------------------------\n";
-	std::cerr << "Mixernia.\n";
+
+	#ifdef MIXER_DEBUG
 	std::cerr << "Rozmiar_danych: " << message.size() << "\n";
 	std::cerr << "Dane: " << message << "\n";
-	std::cerr << "-----------------------------------------\n";
-	*/
+	std::cerr << "----------------------------------------------------------\n";
+	#endif
 
 	// Wyślij do każdego z klientów wynik mixera:
 	for(auto it = client_data_map_.begin(); 
@@ -541,7 +582,11 @@ void server::mixer()
 				if (!error) {
 					// Świetnie, poszło.
 				} else {
-					std::cerr << "Send mixed data: " << error << "\n";
+
+					#ifdef DEBUG
+					std::cerr << "[Error code] Send mixed data: " << error << "\n";
+					#endif
+
 				}
 			}
 		);
@@ -585,7 +630,11 @@ void server::run_raport_timer()
 	raport_timer_.async_wait(
 		[this](boost::system::error_code error) {
 			if (error) {
-				std::cerr << "Run raport timer: " << error << " \n";
+
+				#ifdef DEBUG
+				std::cerr << "[Error code] Run raport timer: " << error << " \n";
+				#endif
+
 			} else {
 				send_raport();
 			}
@@ -603,7 +652,6 @@ void server::run_raport_timer()
 void server::run_udp_dgram_timer(
 	std::shared_ptr<boost::asio::ip::udp::endpoint> client_endpt)
 {
-	//std::cerr << "Jestem w tym zegarku\n";
 	const size_t clientid = client_map_[*client_endpt];
 	auto it = udp_dgram_timers_.find(clientid);
 	if (it != udp_dgram_timers_.end()) {
@@ -623,8 +671,12 @@ void server::run_udp_dgram_timer(
 					// W.p.p, gdy oczekujemy na odpowiedź zbyt długo:
 					// -> zwolnij zasoby klienta przekazywane po UDP
 					// -> nie przerywaj połączenia po TCP(same raporty).
-					std::cerr << "Usuwam zasoby nadane po UDP przez klienta: " 
+					
+					#ifdef DEBUG
+					std::cerr << "[Error code] Free resources of client: " 
 					<< clientid << ".\n";
+					#endif
+
 					free_resources(clientid);
 				}
 			}
